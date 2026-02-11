@@ -1,0 +1,17 @@
+{
+    "title": "비자발적 종신 독재자 (Involuntary Dictator for Life)",
+    "selected_hypothesis": "C (Psychology): The narrative's core engine is a 'Competence-Porn Payoff Loop' framed as a political survival thriller. It hooks readers by thrusting a relatable, non-political 'everyman' into a position of absolute power, then delivers dopamine hits through a 'SimCity'-style problem-solving structure (Input -> Development -> Visible Reward).",
+    "analysis_content": {
+        "description": "The story's commercial success hinges on its genre subversion. It starts as a 'get a high-paying job' story, making the protagonist highly relatable, and then violently pivots into a nation-building survival game. The reader's satisfaction comes not from complex political maneuvering, but from watching the protagonist apply his practical, modern business sense (MBA, Silicon Valley experience) to solve national-level problems, creating clear, tangible progress. The 'involuntary' nature of his dictatorship removes the moral burden, allowing the reader to enjoy the power fantasy without guilt.",
+        "character_list": [
+            "Yujin (MC/The Accidental Dictator)",
+            "The External Power (Antagonist Archetype, e.g., CIA)",
+            "The Loyal Aide (Supporter Archetype)",
+            "The Pragmatic General (Supporter Archetype)",
+            "The Idealistic Revolutionary (Rival/Heroine Archetype)"
+        ]
+    },
+    "evidence_from_text": "MC's initial motivation is purely financial, establishing him as a relatable 'everyman': \"연봉으로 35만 달러는 어떻가? ... 내일부터 출근하겠습니다.\" (How about a salary of $350,000? ... I'll start tomorrow.). The RAG data confirms the critical hook is the sudden genre shift: \"평범한 장관직 수행물인 줄 알았다가, 갑작스러운 '폭사' 이벤트로 장르가 생존/독재물로 급변하는 1화의 임팩트가 매우 큼.\" (The impact of Episode 1 is huge because it seems like a normal story about being a minister before suddenly shifting to a survival/dictatorship genre with an explosion event.).",
+    "rubric_match_score": 10,
+    "actionable_insight": "The protagonist must be an 'outsider' whose primary weapon is practical, modern-world competence (e.g., business, engineering), not political savvy. The core appeal is seeing these skills solve large-scale problems in a simplified, game-like fashion, prioritizing tangible development over intricate political drama."
+}

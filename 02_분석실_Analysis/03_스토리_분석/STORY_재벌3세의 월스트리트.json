@@ -1,0 +1,11 @@
+{
+    "title": "재벌3세의 월스트리트",
+    "selected_hypothesis": "C (Psychology): The narrative employs a 'Future-First Hook' structure. It begins by showcasing the protagonist's ultimate success (the 'Cider') before revealing his miserable past (the 'Lack'). This immediately validates the protagonist's journey and creates powerful anticipation, hooking the reader with the question of 'How did he do it?'",
+    "analysis_content": {
+        "description": "The prologue's effectiveness lies in its strategic reversal of chronological storytelling. Instead of showing a weak protagonist who *might* become strong, it presents a powerful, respected figure and then reveals he was once a despised outcast ('pushover', 'son of a concubine') who regressed in time. This structure provides an instant dopamine hit by guaranteeing the reader a satisfying power fantasy. The core conflict is not just about financial success on Wall Street but about reclaiming a stolen identity and achieving ultimate validation against the family that discarded him.",
+        "character_list": null
+    },
+    "evidence_from_text": "Immediate Success (Future): 'The entire world is paying attention to your every move, Mr. Do Jun... You are the pride of our country.' Past Misery (Lack): 'I was a pushover in my family (나는 가족들에게 호구였다)... the son of a concubine (첩의 자식).' Clear Goal/Revenge Motivation (Desire): 'I will not live like a pushover anymore. I will devour everything. Everything that was supposed to be mine.'",
+    "rubric_match_score": 10,
+    "actionable_insight": "To maximize engagement, begin the story by showcasing the protagonist's peak success or the direct result of their future victory. This validates the premise and hooks the reader with a promise of guaranteed satisfaction before delving into the initial struggles."
+}

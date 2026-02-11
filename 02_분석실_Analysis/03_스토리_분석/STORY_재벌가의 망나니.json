@@ -1,0 +1,17 @@
+{
+    "title": "재벌가 망나니 (The Rake of the Chaebol Family)",
+    "selected_hypothesis": "C (Psychology): The winning formula is a high-speed 'Resentment Compression Engine'. It manufactures maximum reader frustration and provides an immediate, vicarious 'cider' release within a single prologue, perfectly priming the audience for the inevitable 'What If' regression hook.",
+    "analysis_content": {
+        "description": "The prologue's structure is a masterclass in commercial efficiency. It immediately establishes a universally relatable conflict: a competent, hard-working protagonist (Nogi-seok) suffering under an incompetent, selfish, nepotistic boss (Jo Hyun-joo). The narrative generates intense frustration through a simple, powerful symbol—the boss's new luxury car versus three months of unpaid employee salaries. The 'cider' payoff is delivered swiftly and physically when the protagonist confronts the boss, grabbing his collar and verbally eviscerating him. This acts as a proxy for the reader's own frustrations. The episode concludes with a clear, explicit hook—'What if I had inherited the company?'—which perfectly sets the stage for the regression/transmigration that the genre audience expects and desires.",
+        "character_list": [
+            "Nogi-seok (MC/Protagonist)",
+            "Jo Hyun-joo (Antagonist/President)",
+            "Joo Hyung-seok (Supporter/Assistant Manager)",
+            "The Late President (Moral Anchor)",
+            "Yoo Daeri (Secretary/Witness)"
+        ]
+    },
+    "evidence_from_text": "\"직원들의 밀린 월급도 주기 전에 새 차부터 뽑았다니.\" (He bought a new car before paying the employees' overdue salaries.) - This line establishes the core injustice immediately. \"두 눈이 녀석의 멱살을 움켜쥐었다.\" (My eyes glared as I grabbed him by the collar.) - This is the physical peak of the 'cider' confrontation, a moment of vicarious satisfaction for the reader. \"이런 놈이 아니라 내가 이 회사를 물려받았다면?\" (If I had inherited this company instead of this guy?) - This is the explicit and powerful hook that defines the story's future direction.",
+    "rubric_match_score": 10,
+    "actionable_insight": "To create a powerful opening hook, compress the entire justification for the protagonist's second chance into the first episode. Present a clear injustice, allow the protagonist to confront it directly for an immediate 'cider' payoff, and end with an explicit 'what if' question that the rest of the story will answer."
+}

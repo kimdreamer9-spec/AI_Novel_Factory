@@ -1,0 +1,11 @@
+{
+    "title": "비자발적 종신 독재자 (Involuntary Dictator for Life)",
+    "selected_hypothesis": "C (Psychology): The formula combines an 'Unfathomable Status Leap' with a 'Nation-Building Game Loop'. The initial hook is the absurdly fast promotion from unemployed to dictator, providing a massive dopamine rush. Reader retention is then achieved through a satisfying, game-like feedback system (SimCity), where the MC's actions lead to clear, tangible results.",
+    "analysis_content": {
+        "description": "The story's commercial success hinges on a two-stage rocket. Stage 1 is the 'Absurd Promotion': The protagonist goes from unemployed to minister to sole leader in the span of an episode (as confirmed by RAG data). This fulfills the reader's fantasy of instantaneous, unearned hyper-competence and status. Stage 2 is the 'SimCity Satisfaction': Instead of complex, slow-burn politics, the narrative adopts a management simulation game's grammar. The MC identifies a problem (e.g., poor infrastructure), applies a solution (using his modern knowledge), and gets a clear, immediate reward (e.g., economic growth, citizen happiness). This creates a simple, addictive, and low-stress feedback loop for the reader.",
+        "character_list": null
+    },
+    "evidence_from_text": "The RAG data is key: 'AI Interpretation: ...a sudden 'explosion' event shifts the genre to survival/dictator, the impact is huge.' and 'AI Interpretation: Readers prefer it to follow the grammar of a management simulation with 'Construction -> Development -> Results'...' From the text, the pacing is established by the instant acceptance of a life-changing offer: '연봉으로 35만 달러는 어떻가? (How about a salary of $350,000?)' -> '내일부터 출근하겠습니다. (I'll start tomorrow.)' This demonstrates the extreme speed of the initial status leap.",
+    "rubric_match_score": 10,
+    "actionable_insight": "Structure the narrative around an initial, shocking 'Status Explosion' in Episode 1. Then, maintain engagement by focusing on a clear, problem-solution-reward cycle reminiscent of a city-building game, avoiding convoluted political subplots."
+}
