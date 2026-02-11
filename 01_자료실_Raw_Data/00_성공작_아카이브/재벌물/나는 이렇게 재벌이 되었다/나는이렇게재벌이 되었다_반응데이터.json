@@ -1,0 +1,39 @@
+{
+  "reaction_meta": {
+    "target_novel": "나는 이렇게 재벌이 되었다",
+    "source_summary": "Best Reviews from Munpia (Users: 카루마s, 가상화폐, K군1호)",
+    "market_proven_stats": {
+      "consensus_theme": "Industrial Romance & Patriotism",
+      "reader_loyalty": "High (Readers finished 500+ chapters)",
+      "review_dates": ["2022.11.30", "2023.11.29", "2022.08.06"]
+    }
+  },
+  "reader_hook_analysis": {
+    "core_appeal": {
+      "concept": "Industrial Expert / Founder Reincarnation",
+      "reader_expression": "대우그룹 김우중 회장 환생, 건설/플랜트 전문가",
+      "ai_interpretation": "단순한 재벌 3세가 아니라, '맨땅에 헤딩'하는 창업가 정신과 60년대 특유의 '낭만(Romance)'이 독자들의 향수를 자극함."
+    },
+    "differentiation_point": {
+      "vs_standard_chaebol": "Expertise Porn (Hard Industry)",
+      "reader_comment": "현업 종사자가 봐도 이질감 없는 섬유/화학 산업 조사, 플랜트 사업 진두지휘",
+      "ai_interpretation": "주식이나 비트코인 같은 '금융'이 아니라, 공장을 짓고 수출을 하는 '실물 경제(제조업)'의 디테일이 압도적임."
+    },
+    "cider_mechanics": {
+      "type": "Nationalist Catharsis (Gukbbong)",
+      "reader_expression": "일본이 차지한 파이를 한국이 싹 다 가져오는 사이다, 일본 견제",
+      "interpretation": "기술 개발을 통해 일본을 이기는 서사가 강력한 도파민을 제공함."
+    }
+  },
+  "risk_factors": {
+    "political_sensitivity": "Political views regarding 70s dictatorship",
+    "reader_sentiment": "Some might feel uncomfortable, but most accept it as genre fun."
+  },
+  "raw_evidence_keywords": [
+    "대우그룹 모티브",
+    "60년대 낭만 시대",
+    "플랜트/석유/섬유 전문성",
+    "기술 확보와 달러 벌이",
+    "일본 약화"
+  ]
+}

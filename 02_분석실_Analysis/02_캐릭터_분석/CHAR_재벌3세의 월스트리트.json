@@ -1,0 +1,17 @@
+{
+    "title": "재벌3세의 월스트리트",
+    "selected_hypothesis": "C (Psychology): The narrative's primary dopamine loop is the 'Intellectual Power Fantasy.' It weaponizes future knowledge in the high-stakes, logic-driven arena of Wall Street, allowing readers to experience vicarious omniscience and control over a system that feels overwhelmingly complex in real life.",
+    "analysis_content": {
+        "description": "This novel thrives by transforming complex financial markets into a solvable puzzle for the protagonist. His charm isn't just wealth acquisition; it's the intellectual domination he exerts over established financial giants and his own powerful family. He doesn't just win; he demonstrates prophetic foresight, making powerful people look foolish. This satisfies the reader's desire to outsmart 'the system' and be recognized for superior intellect, a potent power fantasy in the modern age.",
+        "character_list": [
+            "디트로이트 도 모건 (Protagonist)",
+            "조나단 모건 (Main Villain / Family Patriarch)",
+            "에밀리 (Key Supporter 1 / Personal Assistant)",
+            "스티브 (Key Supporter 2 / Legal & Financial Advisor)",
+            "레이첼 (Key Rival / Analyst)"
+        ]
+    },
+    "evidence_from_text": "\"Coca-Cola is not just a drink, it's my declaration of independence.\" - This line, tied to the Chapter 4-7 titles, establishes the protagonist's clear goal and the symbolic nature of his first major move. It's not about money, but about breaking free from the villain's control. \"They see a child playing with stocks. I see the future they are blind to.\" - Defines the core conflict dynamic: the protagonist's hidden knowledge versus the establishment's arrogant ignorance.",
+    "rubric_match_score": 10,
+    "actionable_insight": "Ensure the protagonist's financial victories are consistently framed as intellectual triumphs over specific, arrogant antagonists (e.g., the family patriarch, a rival firm). The emotional payoff comes not from the money earned, but from the validation of the protagonist's 'impossible' knowledge and the humbling of his powerful doubters."
+}
