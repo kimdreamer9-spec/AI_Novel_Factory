@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 # =========================================================
-# ⚖️ [총괄 PD] Strategy Judge (V35. Detailed Plot)
-# 목표: 초반 25화 구체적 플롯 강제 생성 (Lazy AI 방지)
+# ⚖️ [총괄 PD] Strategy Judge (V36. Data-Driven Analysis)
+# 목표: RAG 기반의 냉철한 전략 분석 및 근거 제시
 # =========================================================
 
 warnings.filterwarnings("ignore")
@@ -59,11 +59,23 @@ def manage_project_folder(plan_data):
     return new_path, safe_title
 
 def fetch_knowledge():
+    """RAG: 분석 및 기획에 필요한 핵심 데이터 로드"""
     context = ""
     try:
+        # 트렌드 리포트
         trend_file = ANALYSIS_DIR / "00_통합_트렌드_리포트.json"
         if trend_file.exists():
-            context += f"\n[Market Trend]:\n{trend_file.read_text(encoding='utf-8')[:3000]}\n"
+            context += f"\n[Market Trend Report (2026)]:\n{trend_file.read_text(encoding='utf-8')[:4000]}\n"
+        
+        # 평가 루브릭
+        rubric_file = KNOWLEDGE_DIR / "standard-rubric.json"
+        if rubric_file.exists():
+            context += f"\n[Evaluation Rubric]:\n{rubric_file.read_text(encoding='utf-8')[:3000]}\n"
+            
+        # 성공 팁
+        tip_file = KNOWLEDGE_DIR / "팁_보물창고.txt" # 가상의 파일명, 실제 파일이 있다면 연결
+        if tip_file.exists():
+             context += f"\n[Success Tips]:\n{tip_file.read_text(encoding='utf-8')[:2000]}\n"
     except: pass
     return context
 
@@ -79,60 +91,62 @@ def process_planning(mode, user_input, feedback_history=""):
     knowledge = fetch_knowledge()
     
     task_desc = ""
-    if mode == 1: task_desc = f"Create a HIT Novel Plan. Keyword: '{user_input}'."
-    elif mode == 2: task_desc = f"Develop User Idea: '{user_input}'."
-    elif mode == 3: task_desc = f"Fix Failed Story: '{user_input}'."
+    if mode == 1: task_desc = f"Create a BLOCKBUSTER web novel plan. Key: '{user_input}'."
+    elif mode == 2: task_desc = f"Develop this user idea into a commercial hit: '{user_input}'."
+    elif mode == 3: task_desc = f"Rescue this failed story setup: '{user_input}'."
 
     feedback_instruction = ""
     if feedback_history:
         feedback_instruction = f"""
         [BOSS FEEDBACK]: "{feedback_history}"
-        [INSTRUCTION]: Reflect this feedback perfectly.
+        [INSTRUCTION]: The Boss wants changes. 
+        However, as a Strategy Officer, do NOT just blindly follow. 
+        Analyze the request against [Market Trend Report] and [Evaluation Rubric].
+        If the request hurts commerciality, warn about it in the 'strategy_analysis' section, but still reflect the changes in the plan.
         """
 
-    # 🔥 [핵심 변경] composition 필드에 대한 구체적 지시 추가
+    # 🔥 [핵심] 전략 분석실(Strategy Office) 페르소나 주입
     prompt = f"""
-    You are the Chief Producer of a top-tier web novel studio in Korea.
-    Generate a **Web Novel Planning Proposal** strictly following the format below.
+    You are the **Chief Strategy Officer (CSO)** and **Red Team Leader** of a top-tier web novel studio.
+    Your goal is to create a high-selling web novel plan that strictly follows market trends.
     
-    [Reference]
+    [Reference Data (RAG)]
     {knowledge}
     
     [Task]
     {task_desc}
     {feedback_instruction}
     
-    [CRITICAL RULE]
-    - **Never leave 'composition' empty.** - The 'beginning' (Eps 1-25) MUST be detailed. Describe the Inciting Incident, Awakening, First Antagonist, and the Resolution of the first arc.
+    [Output Requirements]
+    1.  **Format:** JSON Only (Korean).
+    2.  **Detail:** 'composition' (Eps 1-25) MUST be detailed with specific events.
+    3.  **Analysis:** You MUST provide a 'strategy_analysis' object that critiques this plan based on the provided [Reference Data]. Quote specific trends or rubric criteria.
     
-    [Output JSON Format (Korean)]
-    Return ONLY a JSON object with these exact keys:
+    [Output JSON Structure]
     {{
-        "title": "Title (Hooky)",
+        "title": "Title",
         "genre": "Genre",
         "keywords": ["Tag1", "Tag2"],
         "target_reader": "Target Audience",
         "logline": "1 sentence hook",
-        "planning_intent": "Commercial Strategy",
+        "planning_intent": "Intent",
         "selling_points": ["Point 1", "Point 2"],
-        "characters": [
-            {{"name": "Name", "role": "Role", "desc": "Personality"}}
-        ],
+        "characters": [ {{"name": "Name", "role": "Role", "desc": "Desc"}} ],
         "synopsis": "Full Summary",
         "composition": {{
-            "beginning": "1~25화: [발단] 주인공의 각성 계기 -> [전개] 첫 번째 위기 및 능력 획득 -> [절정] 첫 빌런/라이벌 등장 및 사이다 해결 -> [결말] 더 큰 세계로의 진입 암시",
-            "middle": "26~100화: 세력 확장, 새로운 조력자 영입, 중간 보스와의 대립 심화",
-            "end": "101화~: 최종 흑막 등장, 세계관의 비밀 해소, 완벽한 엔딩"
+            "beginning": "1~25화: [발단] ... [전개] ... [위기] ... [절정] ... [결말] ...",
+            "middle": "26~100화: ...",
+            "end": "101화~: ..."
         }},
         "ep1_core_points": {{
-            "opening": "Opening Scene",
-            "climax": "Episode 1 Climax",
-            "ending": "Cliffhanger Ending"
+            "opening": "...", "climax": "...", "ending": "..."
         }},
-        "risk_report": {{
-            "detected": true/false,
-            "red_team_warning": "Warning message",
-            "alternative_suggestion": "Solution"
+        "strategy_analysis": {{
+            "trend_score": 95, 
+            "trend_comment": "Analyzed based on [Market Trend Report]...",
+            "rubric_evaluation": "Based on [Evaluation Rubric], the pacing is...",
+            "red_team_warning": "Cold objective criticism (e.g., 'The villain is too weak').",
+            "improvement_suggestion": "Actionable advice to fix the warning."
         }}
     }}
     """
@@ -141,7 +155,7 @@ def process_planning(mode, user_input, feedback_history=""):
         response = pd_model.generate_content(prompt)
         text = response.text.replace("```json", "").replace("```", "").strip()
         result_json = json.loads(text)
-        log("✅ 표준 기획안 생성 완료.")
+        log("✅ 전략적 기획안 및 분석 보고서 생성 완료.")
         return result_json, "\n".join(logs)
     except Exception as e:
         log(f"❌ 에러: {e}")
