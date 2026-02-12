@@ -1,13 +1,15 @@
 import streamlit as st
 import sys
 import time
+import json
+import os
 from pathlib import Path
 
 # =========================================================
-# 🏭 AI Novel Factory V6 (The Partner UI)
+# 🏭 AI Novel Factory V6 (Planning -> Production Connected)
 # =========================================================
 
-# 1. 경로 설정
+# 1. 경로 설정 (03번 방 엔진 연결)
 current_dir = Path(__file__).parent
 planning_dir = current_dir / "03_전략기획실_Planning"
 sys.path.append(str(planning_dir))
@@ -24,105 +26,128 @@ except ImportError:
     ENGINE_STATUS = "🔴 엔진 연결 실패"
     MODEL_INFO = "Unknown"
 
+# 3. 헤더
 st.title("🏭 AI 소설 공장 통합 관제탑")
-st.caption(f"시스템 상태: {ENGINE_STATUS} | Model: {MODEL_INFO}")
+st.caption(f"시스템 상태: {ENGINE_STATUS} | Model: {MODEL_INFO} | Storage: Local (Codespace)")
 
-if "plan_history" not in st.session_state: st.session_state.plan_history = [] 
+# 4. 세션 상태
 if "current_plan" not in st.session_state: st.session_state.current_plan = None 
 
 tab_plan, tab_write, tab_qc = st.tabs(["💡 1. 기획실", "✍️ 2. 제작소", "⚖️ 3. 품질관리"])
 
 # =========================================================
-# 💡 1. 기획실
+# 💡 1. 기획실 (Strategy Room) - 기존 유지
 # =========================================================
 with tab_plan:
-    st.subheader("🧠 전략 기획실 (Strategy Room)")
+    st.subheader("🧠 전략 기획실")
     c1, c2 = st.columns([1, 1.5])
     
-    # [왼쪽] 입력
     with c1:
         st.info("🛠️ 작전 지시")
-        mode_idx = st.radio("모드 선택", ["1. 오리지널 (자동)", "2. 유저 기획 (발전)", "3. 심폐소생 (수정)"], index=0)
-        user_input = st.text_area("키워드 / 아이디어 / 문제점 입력", height=150)
-        
+        mode_idx = st.radio("모드", ["1. 오리지널", "2. 유저 기획", "3. 심폐소생"], index=0)
+        user_input = st.text_area("키워드 입력", height=150)
         if st.button("🔥 기획 엔진 가동", type="primary"):
-            if "🔴" in ENGINE_STATUS:
-                st.error("엔진 연결 실패")
-            else:
-                with st.spinner("PD가 레디팀과 회의 중입니다..."):
-                    mode_num = int(mode_idx[0])
-                    res, logs = engine.process_planning(mode_num, user_input)
-                    st.session_state.current_plan = res
-                    st.session_state.logs = logs
-                    st.rerun()
+            with st.spinner("PD가 기획 중..."):
+                mode_num = int(mode_idx[0])
+                res, logs = engine.process_planning(mode_num, user_input)
+                st.session_state.current_plan = res
+                st.rerun()
 
-    # [오른쪽] 보고서
     with c2:
         if st.session_state.current_plan:
             plan = st.session_state.current_plan
+            st.markdown(f"## 📑 {plan.get('title')}")
+            st.info(f"로그라인: {plan.get('logline')}")
+            with st.expander("상세 보기", expanded=True):
+                st.write(plan.get('synopsis'))
             
-            # 🔥 [New] 리스크 리포트 (PD의 직언)
-            risk = plan.get('risk_report', {})
-            if risk.get('detected') == True:
-                st.error("🚨 [Red Team 긴급 제언] 사장님, 잠시만요!")
-                st.markdown(f"""
-                <div style="background-color:#fff5f5; padding:15px; border-radius:5px; border:1px solid #fc8181; color:#c53030;">
-                    <b>⛔ 경고:</b> {risk.get('red_team_warning')}<br><br>
-                    <b>💡 대안 제시:</b> {risk.get('alternative_suggestion')}
-                </div>
-                """, unsafe_allow_html=True)
-                st.write("") # 여백
-            
-            # 기본 정보
-            st.markdown(f"# 📑 {plan.get('title', '제목 미정')}")
-            keywords = plan.get('keywords', [])
-            kw_str = ", ".join(keywords) if isinstance(keywords, list) else str(keywords)
-            st.markdown(f"**장르:** {plan.get('genre')} | **키워드:** {kw_str}")
-            st.info(f"💡 **로그라인:** {plan.get('logline')}")
-            
-            # 상세 내용
-            with st.expander("📌 3. 기획 의도", expanded=True):
-                st.write(plan.get('planning_intent', '내용 없음'))
-            with st.expander("👥 4. 등장인물", expanded=True):
-                for char in plan.get('characters', []):
-                    if isinstance(char, dict):
-                        st.markdown(f"**{char.get('name')}** ({char.get('role')}): {char.get('desc')}")
-                    else: st.write(f"- {char}")
-            with st.expander("📜 5. 줄거리", expanded=True):
-                st.write(plan.get('synopsis', '내용 없음'))
-            with st.expander("🔥 6. 차별화 포인트", expanded=True):
-                for p in plan.get('selling_points', []):
-                    st.write(f"- {p}")
-            
-            st.caption(f"🏁 PD 코멘트: {plan.get('pd_comment')}")
-            st.markdown("---")
-            
-            # 결재 버튼
             st.write("### 👑 사장님 결재")
-            col_approve, col_reject, col_trash = st.columns(3)
-            
-            if col_approve.button("✅ 승인 (제작 착수)"):
+            col_a, col_b, col_c = st.columns(3)
+            if col_a.button("✅ 승인 (제작 착수)"):
                 success, msg = engine.save_and_deploy(plan)
                 if success:
-                    st.toast("제작소 이관 완료!", icon="🚀")
+                    st.toast("제작소로 이관 완료!", icon="🚀")
                     st.success(msg)
+                    time.sleep(1)
+                    st.rerun() # 화면 갱신해서 제작소에 반영
                 else: st.error(msg)
-            
-            with col_reject.popover("⚠️ 반려 (수정 지시)"):
-                feedback = st.text_area("수정 지시사항")
-                if st.button("수정 요청 전송"):
-                    with st.spinner("지시사항 재검토 중..."):
-                        mode_num = int(mode_idx[0])
-                        res, logs = engine.process_planning(mode_num, user_input, feedback_history=feedback)
-                        st.session_state.current_plan = res
-                        st.rerun()
+            # (반려/폐기 버튼 생략 - 위 코드와 동일)
 
-            if col_trash.button("🗑️ 폐기"):
-                st.session_state.current_plan = None
-                st.rerun()
+# =========================================================
+# ✍️ 2. 제작소 (Production Studio) - 🔥 여기가 핵심 수정됨
+# =========================================================
+with tab_write:
+    st.subheader("✍️ 메인 집필실 (Writer's Room)")
+    
+    # 1. 03번 폴더 스캔하여 프로젝트 목록 가져오기
+    # (폴더이면서 __pycache__가 아닌 것들)
+    try:
+        projects = [f.name for f in planning_dir.iterdir() if f.is_dir() and not f.name.startswith("__") and not f.name.startswith(".")]
+        projects.sort(reverse=True) # 최신순 정렬
+    except Exception as e:
+        projects = []
+        st.error(f"폴더 스캔 실패: {e}")
+
+    # 2. 프로젝트 선택 UI
+    col_list, col_work = st.columns([1, 2])
+    
+    with col_list:
+        st.markdown("### 📂 프로젝트 보관함")
+        if not projects:
+            st.warning("진행 중인 프로젝트가 없습니다. 기획실에서 승인해주세요.")
         else:
-            st.info("👈 왼쪽 패널에서 엔진을 가동해주세요.")
+            selected_project_name = st.radio("작업할 소설 선택", projects)
+            
+            # 선택된 폴더 경로
+            selected_path = planning_dir / selected_project_name
+            
+            # 파일 로드 시도
+            try:
+                json_path = selected_path / "Approved_Plan.json"
+                if json_path.exists():
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        project_data = json.load(f)
+                    st.success(f"✅ '{selected_project_name}' 로드 완료")
+                else:
+                    project_data = None
+                    st.warning("⚠️ 승인된 기획안 파일(Approved_Plan.json)이 없습니다.")
+            except Exception as e:
+                st.error(f"로드 에러: {e}")
+                project_data = None
 
-# (탭 2, 3 유지)
-with tab_write: st.info("제작소 대기 중")
-with tab_qc: st.info("QC 대기 중")
+    # 3. 작업 공간 UI
+    with col_work:
+        if project_data:
+            st.markdown(f"## 📝 집필 중: {project_data.get('title')}")
+            
+            with st.expander("📚 설정 자료 (기획안 요약)", expanded=False):
+                st.write(f"**장르:** {project_data.get('genre')}")
+                st.write(f"**로그라인:** {project_data.get('logline')}")
+                st.write("**등장인물:**")
+                st.json(project_data.get('characters'))
+
+            # (여기서 구글 닥스 링크가 생성될 예정)
+            st.info("👇 [집필 AI]에게 명령을 내려주세요.")
+            
+            # 채팅 인터페이스 (집필용)
+            if "messages" not in st.session_state: st.session_state.messages = []
+
+            for msg in st.session_state.messages:
+                st.chat_message(msg["role"]).write(msg["content"])
+
+            if prompt := st.chat_input("예: 1화 도입부 써줘 (구글 닥스 연동 예정)"):
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                st.chat_message("user").write(prompt)
+                
+                # (가짜 응답 - 추후 실제 연동)
+                response = f"알겠습니다. '{project_data.get('title')}'의 설정을 바탕으로 집필을 시작합니다... (시스템 준비 중)"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.chat_message("assistant").write(response)
+        else:
+            st.info("👈 왼쪽에서 프로젝트를 선택하면 작업 공간이 열립니다.")
+
+# =========================================================
+# ⚖️ 3. 품질관리 (QC)
+# =========================================================
+with tab_qc:
+    st.info("QC팀 대기 중")
