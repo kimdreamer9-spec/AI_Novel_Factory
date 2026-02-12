@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 # =========================================================
-# ⚖️ [총괄 PD] Strategy Judge (V34. Standard Format)
-# 목표: 사장님 지시 7단계 표준 기획안 양식 적용
+# ⚖️ [총괄 PD] Strategy Judge (V35. Detailed Plot)
+# 목표: 초반 25화 구체적 플롯 강제 생성 (Lazy AI 방지)
 # =========================================================
 
 warnings.filterwarnings("ignore")
@@ -87,10 +87,10 @@ def process_planning(mode, user_input, feedback_history=""):
     if feedback_history:
         feedback_instruction = f"""
         [BOSS FEEDBACK]: "{feedback_history}"
-        [INSTRUCTION]: Reflect this feedback perfectly into the new plan.
+        [INSTRUCTION]: Reflect this feedback perfectly.
         """
 
-    # 🔥 [핵심] 사장님 표준 7단계 포맷 프롬프트
+    # 🔥 [핵심 변경] composition 필드에 대한 구체적 지시 추가
     prompt = f"""
     You are the Chief Producer of a top-tier web novel studio in Korea.
     Generate a **Web Novel Planning Proposal** strictly following the format below.
@@ -102,34 +102,37 @@ def process_planning(mode, user_input, feedback_history=""):
     {task_desc}
     {feedback_instruction}
     
+    [CRITICAL RULE]
+    - **Never leave 'composition' empty.** - The 'beginning' (Eps 1-25) MUST be detailed. Describe the Inciting Incident, Awakening, First Antagonist, and the Resolution of the first arc.
+    
     [Output JSON Format (Korean)]
     Return ONLY a JSON object with these exact keys:
     {{
-        "title": "제목 (Hooky Title)",
-        "genre": "장르 (Main/Sub)",
-        "keywords": ["#Key1", "#Key2", "#Key3", "#Key4", "#Key5", "#Key6"],
-        "target_reader": "타겟 독자층 (구체적)",
-        "logline": "한 줄 소개 (핵심 재미)",
-        "planning_intent": "기획 의도 (왜 이 글인가?)",
-        "selling_points": ["셀링포인트1", "셀링포인트2"],
+        "title": "Title (Hooky)",
+        "genre": "Genre",
+        "keywords": ["Tag1", "Tag2"],
+        "target_reader": "Target Audience",
+        "logline": "1 sentence hook",
+        "planning_intent": "Commercial Strategy",
+        "selling_points": ["Point 1", "Point 2"],
         "characters": [
-            {{"name": "이름/나이", "role": "주인공/조력자/악역", "desc": "성격, 능력, 결핍"}}
+            {{"name": "Name", "role": "Role", "desc": "Personality"}}
         ],
-        "synopsis": "전체 줄거리 (기승전결)",
+        "synopsis": "Full Summary",
         "composition": {{
-            "beginning": "초반 (1~25화) 내용",
-            "middle": "중반 (26~100화) 내용",
-            "end": "후반 (101화~) 내용"
+            "beginning": "1~25화: [발단] 주인공의 각성 계기 -> [전개] 첫 번째 위기 및 능력 획득 -> [절정] 첫 빌런/라이벌 등장 및 사이다 해결 -> [결말] 더 큰 세계로의 진입 암시",
+            "middle": "26~100화: 세력 확장, 새로운 조력자 영입, 중간 보스와의 대립 심화",
+            "end": "101화~: 최종 흑막 등장, 세계관의 비밀 해소, 완벽한 엔딩"
         }},
         "ep1_core_points": {{
-            "opening": "오프닝 (긴장감)",
-            "climax": "1화 클라이맥스 (사건)",
-            "ending": "1화 엔딩 (훅/절단신)"
+            "opening": "Opening Scene",
+            "climax": "Episode 1 Climax",
+            "ending": "Cliffhanger Ending"
         }},
         "risk_report": {{
             "detected": true/false,
-            "red_team_warning": "Warning if boss's idea is risky",
-            "alternative_suggestion": "Better solution"
+            "red_team_warning": "Warning message",
+            "alternative_suggestion": "Solution"
         }}
     }}
     """
