@@ -9,33 +9,45 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 # =========================================================
-# ⚖️ [총괄 PD] Strategy Judge (V32. Knowledge Integration)
-# 목표: 트렌드, 팁, 루브릭을 RAG로 참조하여 기획
+# ⚖️ [총괄 PD] Strategy Judge (V33. Final Engine)
 # =========================================================
 
 warnings.filterwarnings("ignore")
 
-# 1. 환경 및 경로 설정
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent
-PLANNING_DIR = CURRENT_DIR 
+# 1. 절대 경로 설정 (나노 단위 고정)
+CURRENT_DIR = Path(__file__).resolve().parent # 03_전략기획실 폴더
+PROJECT_ROOT = CURRENT_DIR.parent             # 최상위 루트
+PLANNING_DIR = CURRENT_DIR                    # 기획안 저장될 곳
 
-# [RAG] 참조할 지식 창고 경로
+# 지식 참조 경로
 KNOWLEDGE_DIR = PROJECT_ROOT / "00_기준정보_보물창고"
 ANALYSIS_DIR = PROJECT_ROOT / "02_분석실_Analysis"
 
-load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
-
+# 루트 경로 인식 (model_selector 찾기 위함)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
+# API 키 로드
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 API_KEY = os.getenv("GEMINI_KEY_PLANNING") or os.getenv("GEMINI_API_KEY")
 if API_KEY: genai.configure(api_key=API_KEY)
 
 pd_model = None
 MODEL_NAME = "Unknown"
 
-# --- [Helper Functions] ---
+# --- [초기화 및 유틸] ---
+def init_engine():
+    global pd_model, MODEL_NAME
+    try:
+        import model_selector
+        MODEL_NAME = model_selector.find_best_model()
+        pd_model = genai.GenerativeModel(MODEL_NAME)
+        return True, f"Engine Online: {MODEL_NAME}"
+    except:
+        MODEL_NAME = "gemini-1.5-pro-latest"
+        pd_model = genai.GenerativeModel(MODEL_NAME)
+        return True, f"Engine Online: {MODEL_NAME} (Fallback)"
+
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).strip().replace(" ", "_")[:40]
 
@@ -49,44 +61,21 @@ def manage_project_folder(plan_data):
     new_path.mkdir(parents=True, exist_ok=True)
     return new_path, safe_title
 
-def init_engine():
-    global pd_model, MODEL_NAME
-    try:
-        import model_selector
-        MODEL_NAME = model_selector.find_best_model()
-        pd_model = genai.GenerativeModel(MODEL_NAME)
-        return True, f"Engine Online: {MODEL_NAME}"
-    except:
-        MODEL_NAME = "gemini-1.5-pro-latest"
-        pd_model = genai.GenerativeModel(MODEL_NAME)
-        return True, f"Engine Online: {MODEL_NAME} (Fallback)"
-
-# 🔥 [NEW] RAG: 지식 가져오기 함수
 def fetch_knowledge():
+    """RAG: 트렌드와 루브릭을 읽어옵니다."""
     context = ""
-    
-    # 1. 트렌드 리포트 (필수)
-    trend_file = ANALYSIS_DIR / "00_통합_트렌드_리포트.json"
-    if trend_file.exists():
-        try:
-            context += f"\n[Market Trend Report]:\n{trend_file.read_text(encoding='utf-8')[:3000]}\n"
-        except: pass
+    try:
+        trend_file = ANALYSIS_DIR / "00_통합_트렌드_리포트.json"
+        if trend_file.exists():
+            context += f"\n[Market Trend]:\n{trend_file.read_text(encoding='utf-8')[:3000]}\n"
         
-    # 2. 루브릭 (필수)
-    rubric_file = KNOWLEDGE_DIR / "standard-rubric.json"
-    if rubric_file.exists():
-        try:
-            context += f"\n[Evaluation Rubric]:\n{rubric_file.read_text(encoding='utf-8')[:2000]}\n"
-        except: pass
-        
-    # 3. 팁 (랜덤 or 핵심)
-    tip_file = KNOWLEDGE_DIR / "팁_도입부.md"
-    if tip_file.exists():
-         context += f"\n[Writing Tips]:\n{tip_file.read_text(encoding='utf-8')[:1000]}\n"
-         
+        rubric_file = KNOWLEDGE_DIR / "standard-rubric.json"
+        if rubric_file.exists():
+            context += f"\n[Rubric]:\n{rubric_file.read_text(encoding='utf-8')[:2000]}\n"
+    except: pass
     return context
 
-# --- [Core Logic] ---
+# --- [핵심 로직] ---
 def process_planning(mode, user_input, feedback_history=""):
     global pd_model
     logs = []
@@ -95,54 +84,50 @@ def process_planning(mode, user_input, feedback_history=""):
     if not pd_model: init_engine()
     log(f"🧠 [PD] 기획 엔진 가동 (Model: {MODEL_NAME})")
     
-    # 1. 지식 로드 (RAG)
-    knowledge_context = fetch_knowledge()
-    log("📚 트렌드 리포트 및 작법 팁 참조 완료.")
-
-    # 2. 태스크 정의
+    # 지식 주입
+    knowledge = fetch_knowledge()
+    
+    # 모드별 태스크
     task_desc = ""
-    if mode == 1: task_desc = f"Create a BLOCKBUSTER web novel plan. Key: '{user_input}'."
-    elif mode == 2: task_desc = f"Upgrade this idea into a HIT novel: '{user_input}'."
-    elif mode == 3: task_desc = f"Fix this failed story logic: '{user_input}'."
+    if mode == 1: task_desc = f"Create a WEB NOVEL PLAN. Keyword: '{user_input}'."
+    elif mode == 2: task_desc = f"Develop this idea: '{user_input}'."
+    elif mode == 3: task_desc = f"Fix this story: '{user_input}'."
 
+    # 피드백 반영 (리메이크 시)
     feedback_instruction = ""
     if feedback_history:
         feedback_instruction = f"""
         [BOSS FEEDBACK]: "{feedback_history}"
-        [CRITICAL INSTRUCTION]: Do NOT blindy accept. Use Red Team logic to verify risks.
-        If risky, suggest alternatives. If perfect, accept.
+        [INSTRUCTION]: Reflect this feedback perfectly.
+        If it conflicts with trends, verify risks but prioritize the Boss's intent.
         """
 
     prompt = f"""
-    You are the Chief Producer of a top-tier web novel studio (Korea).
+    You are the Chief Producer of a top-tier web novel studio in Korea.
     
-    [Reference Knowledge]
-    {knowledge_context}
+    [Knowledge Base]
+    {knowledge}
     
     [Task]
     {task_desc}
     {feedback_instruction}
     
-    [Requirements]
-    1. Reflect the [Market Trend Report] to ensure commercial success.
-    2. Follow the [Writing Tips] for character and plot structure.
-    
-    [Output Format (Korean)]
+    [Output Format (JSON Only, Korean)]
     {{
-        "title": "Title",
-        "genre": "Genre",
-        "keywords": ["List"],
-        "logline": "Hook",
-        "planning_intent": "Intent",
-        "characters": [ {{"name": "Name", "role": "Role", "desc": "Desc"}} ],
-        "synopsis": "Plot",
-        "selling_points": ["List"],
+        "title": "Title (Catchy)",
+        "genre": "Main / Sub Genre",
+        "keywords": ["#Tag1", "#Tag2"],
+        "logline": "1 sentence hook",
+        "planning_intent": "Target audience & commercial strategy",
+        "characters": [ {{"name": "Name", "role": "Role", "desc": "Personality & Ability"}} ],
+        "synopsis": "Plot summary (Intro-Mid-Climax-End)",
+        "selling_points": ["Point 1", "Point 2"],
         "pd_score": 85,
-        "pd_comment": "Based on Rubric",
+        "pd_comment": "Evaluation",
         "risk_report": {{
             "detected": true/false,
-            "red_team_warning": "msg",
-            "alternative_suggestion": "msg"
+            "red_team_warning": "Warning if any",
+            "alternative_suggestion": "Suggestion if any"
         }}
     }}
     """
@@ -150,28 +135,35 @@ def process_planning(mode, user_input, feedback_history=""):
     try:
         response = pd_model.generate_content(prompt)
         text = response.text.replace("```json", "").replace("```", "").strip()
+        if not text: raise ValueError("Empty response from AI")
+        
         result_json = json.loads(text)
         log("✅ 기획 보고서 작성 완료.")
         return result_json, "\n".join(logs)
     except Exception as e:
         log(f"❌ 에러: {e}")
-        return {"title": "Error", "logline": str(e)}, "\n".join(logs)
+        # 에러 발생 시 UI가 깨지지 않게 더미 데이터 반환
+        return {
+            "title": "Error Generating Plan",
+            "logline": f"시스템 오류: {str(e)}",
+            "genre": "System Error",
+            "synopsis": "AI 응답을 받아오지 못했습니다. 다시 시도해주세요.",
+            "characters": [],
+            "risk_report": {"detected": True, "red_team_warning": str(e)}
+        }, "\n".join(logs)
 
 def save_and_deploy(plan_data):
+    """최초 승인 시 폴더 생성 및 저장"""
     try:
         path, title = manage_project_folder(plan_data)
+        
+        # JSON 저장
         (path / "Approved_Plan.json").write_text(json.dumps(plan_data, indent=2, ensure_ascii=False), encoding='utf-8')
         
-        readable_report = f"""
-        [웹소설 기획안 보고서]
-        제목: {plan_data.get('title')}
-        장르: {plan_data.get('genre')}
-        로그라인: {plan_data.get('logline')}
+        # 텍스트 보고서 저장
+        report = f"제목: {title}\n로그라인: {plan_data.get('logline')}\n\n[시놉시스]\n{plan_data.get('synopsis')}"
+        (path / "Project_Report.txt").write_text(report, encoding='utf-8')
         
-        [PD 코멘트] {plan_data.get('pd_comment')}
-        [시놉시스] {plan_data.get('synopsis')}
-        """
-        (path / "Project_Report.txt").write_text(readable_report, encoding='utf-8')
-        return True, f"저장 완료: {path}"
+        return True, f"저장 완료: {path.name}"
     except Exception as e:
         return False, f"저장 실패: {e}"
