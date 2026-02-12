@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 # =========================================================
-# ⚖️ [총괄 PD] Strategy Judge (V28. Full Factory Logic)
-# 목표: 기획 -> 비평 -> 폴더링 -> 사장님 결재 프로세스 완비
+# ⚖️ [총괄 PD] Strategy Judge (V29. Logic Fixed)
+# 목표: 함수 호출 순서 오류 수정 및 안정성 강화
 # =========================================================
 
 warnings.filterwarnings("ignore")
@@ -22,6 +22,7 @@ PLANNING_DIR = CURRENT_DIR # 기획안 저장소
 
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 
+# 루트 경로 추가 (model_selector 찾기 위함)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
@@ -47,6 +48,7 @@ def manage_project_folder(plan_data):
     new_path.mkdir(parents=True, exist_ok=True)
     return new_path, safe_title
 
+# 🔥 [중요] init_engine을 최상단으로 이동!
 def init_engine():
     global pd_model, MODEL_NAME
     try:
@@ -54,6 +56,11 @@ def init_engine():
         MODEL_NAME = model_selector.find_best_model()
         pd_model = genai.GenerativeModel(MODEL_NAME)
         return True, f"Engine Online: {MODEL_NAME}"
+    except ImportError:
+        # 혹시 selector가 없으면 기본값
+        MODEL_NAME = "gemini-1.5-pro-latest"
+        pd_model = genai.GenerativeModel(MODEL_NAME)
+        return True, f"Engine Online: {MODEL_NAME} (Fallback)"
     except Exception as e:
         return False, f"Engine Fail: {str(e)}"
 
@@ -63,10 +70,16 @@ def process_planning(mode, user_input, feedback_history=""):
     기획 + (내부적 비평) + 결과 도출
     feedback_history: 반려 시 사장님의 수정 지시사항
     """
+    global pd_model # 전역 변수 사용 선언
     logs = []
     def log(msg): logs.append(msg)
 
-    if not pd_model: init_engine()
+    # 엔진 초기화 확인
+    if not pd_model:
+        success, msg = init_engine()
+        log(msg)
+        if not success:
+            return {"title": "Error", "logline": msg}, "\n".join(logs)
     
     log(f"🧠 [PD] 기획 엔진 가동 (Model: {MODEL_NAME})")
     
@@ -111,7 +124,7 @@ def process_planning(mode, user_input, feedback_history=""):
         return result_json, "\n".join(logs)
     except Exception as e:
         log(f"❌ 에러: {e}")
-        return {"title": "Error"}, "\n".join(logs)
+        return {"title": "Error", "logline": str(e)}, "\n".join(logs)
 
 def save_and_deploy(plan_data):
     """
