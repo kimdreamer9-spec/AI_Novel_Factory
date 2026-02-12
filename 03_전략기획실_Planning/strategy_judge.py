@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 # =========================================================
-# ⚖️ [총괄 PD] Strategy Judge (V29. Logic Fixed)
-# 목표: 함수 호출 순서 오류 수정 및 안정성 강화
+# ⚖️ [총괄 PD] Strategy Judge (V30. Report Master)
+# 목표: 사장님이 원하시는 '완벽한 기획 보고서' 포맷 출력
 # =========================================================
 
 warnings.filterwarnings("ignore")
@@ -18,18 +18,16 @@ warnings.filterwarnings("ignore")
 # 1. 환경 및 경로 설정
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
-PLANNING_DIR = CURRENT_DIR # 기획안 저장소
+PLANNING_DIR = CURRENT_DIR 
 
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 
-# 루트 경로 추가 (model_selector 찾기 위함)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
 API_KEY = os.getenv("GEMINI_KEY_PLANNING") or os.getenv("GEMINI_API_KEY")
 if API_KEY: genai.configure(api_key=API_KEY)
 
-# 모델 전역 변수
 pd_model = None
 MODEL_NAME = "Unknown"
 
@@ -38,7 +36,6 @@ def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).strip().replace(" ", "_")[:40]
 
 def manage_project_folder(plan_data):
-    """승인된 기획안을 저장할 폴더 생성"""
     raw_title = plan_data.get('title', '무제')
     safe_title = sanitize_filename(raw_title)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -48,7 +45,6 @@ def manage_project_folder(plan_data):
     new_path.mkdir(parents=True, exist_ok=True)
     return new_path, safe_title
 
-# 🔥 [중요] init_engine을 최상단으로 이동!
 def init_engine():
     global pd_model, MODEL_NAME
     try:
@@ -56,63 +52,60 @@ def init_engine():
         MODEL_NAME = model_selector.find_best_model()
         pd_model = genai.GenerativeModel(MODEL_NAME)
         return True, f"Engine Online: {MODEL_NAME}"
-    except ImportError:
-        # 혹시 selector가 없으면 기본값
+    except:
         MODEL_NAME = "gemini-1.5-pro-latest"
         pd_model = genai.GenerativeModel(MODEL_NAME)
         return True, f"Engine Online: {MODEL_NAME} (Fallback)"
-    except Exception as e:
-        return False, f"Engine Fail: {str(e)}"
 
 # --- [Core Logic] ---
 def process_planning(mode, user_input, feedback_history=""):
-    """
-    기획 + (내부적 비평) + 결과 도출
-    feedback_history: 반려 시 사장님의 수정 지시사항
-    """
-    global pd_model # 전역 변수 사용 선언
+    global pd_model
     logs = []
     def log(msg): logs.append(msg)
 
-    # 엔진 초기화 확인
-    if not pd_model:
-        success, msg = init_engine()
-        log(msg)
-        if not success:
-            return {"title": "Error", "logline": msg}, "\n".join(logs)
-    
+    if not pd_model: init_engine()
     log(f"🧠 [PD] 기획 엔진 가동 (Model: {MODEL_NAME})")
     
-    # 1. 프롬프트 구성
+    # 1. 태스크 정의
     task_desc = ""
-    if mode == 1: task_desc = f"Create a hit web novel plan. Keyword: '{user_input}'."
-    elif mode == 2: task_desc = f"Develop user idea: '{user_input}'."
-    elif mode == 3: task_desc = f"Rescue failed story: '{user_input}'."
+    if mode == 1: task_desc = f"Create a BLOCKBUSTER web novel plan. Key: '{user_input}'."
+    elif mode == 2: task_desc = f"Upgrade this idea into a HIT novel: '{user_input}'."
+    elif mode == 3: task_desc = f"Fix this failed story logic: '{user_input}'."
 
-    # 재기획(반려)일 경우 추가 지시
     if feedback_history:
-        task_desc += f"\n[CRITICAL FEEDBACK from BOSS]: {feedback_history} (Reflect this strictly!)"
+        task_desc += f"\n[BOSS FEEDBACK]: {feedback_history} (Must Reflect!)"
 
+    # 🔥 [핵심] 사장님 맞춤형 보고서 프롬프트
     prompt = f"""
-    You are the Chief Producer.
-    Task: {task_desc}
+    You are the Chief Producer of a top-tier web novel studio.
+    Your goal is to create a **Perfect Proposal Report** for the CEO.
     
-    [Requirements]
-    1. Analyze trends and create a commercially viable plan.
-    2. Critique your own plan (Self-Reflection) and improve it before outputting.
+    [Task]
+    {task_desc}
     
-    [Output JSON Format (Korean)]
+    [Output Format]
+    You must output a single JSON object containing the following structure (Language: Korean):
+    
     {{
-        "title": "Title",
-        "genre": "Genre",
-        "logline": "1 sentence hook",
-        "selling_points": ["Point 1", "Point 2", "Point 3"],
-        "synopsis": "Plot summary",
+        "title": "Impactful Title (가제)",
+        "genre": "Main Genre / Sub Genre",
+        "keywords": ["#Keyword1", "#Keyword2", "#Keyword3", "#Keyword4"],
+        "logline": "One sentence hook that grabs attention immediately.",
+        "planning_intent": "Why this story? (Target audience & Commercial strategy)",
         "characters": [
-            {{"name": "Main Char", "role": "Protagonist", "trait": "Personality"}}
+            {{
+                "name": "Name",
+                "role": "Protagonist/Antagonist",
+                "desc": "Detailed personality & motivation"
+            }}
         ],
-        "pd_score": 85 (0-100),
-        "pd_comment": "Why this will succeed or fail"
+        "synopsis": "Full plot summary (Beginning - Middle - Climax - Ending)",
+        "selling_points": [
+            "Differentiation Point 1",
+            "Differentiation Point 2"
+        ],
+        "pd_score": 85,
+        "pd_comment": "Final evaluation from the CP perspective."
     }}
     """
     
@@ -120,31 +113,49 @@ def process_planning(mode, user_input, feedback_history=""):
         response = pd_model.generate_content(prompt)
         text = response.text.replace("```json", "").replace("```", "").strip()
         result_json = json.loads(text)
-        log("✅ 기획안 생성 및 자체 비평 완료.")
+        log("✅ 기획 보고서 작성 완료.")
         return result_json, "\n".join(logs)
     except Exception as e:
         log(f"❌ 에러: {e}")
         return {"title": "Error", "logline": str(e)}, "\n".join(logs)
 
 def save_and_deploy(plan_data):
-    """
-    [승인] 버튼 누를 때 호출. 폴더 만들고 파일 저장.
-    """
     try:
         path, title = manage_project_folder(plan_data)
         
-        # 1. 기획안 저장
+        # 1. JSON 저장
         (path / "Approved_Plan.json").write_text(json.dumps(plan_data, indent=2, ensure_ascii=False), encoding='utf-8')
         
-        # 2. 제작소(Production)를 위한 지시서 생성
-        order_sheet = f"""
-        [제작 지시서]
-        제목: {title}
-        장르: {plan_data.get('genre')}
-        로그라인: {plan_data.get('logline')}
-        캐릭터: {json.dumps(plan_data.get('characters'), ensure_ascii=False)}
+        # 2. 사장님용 읽기 편한 보고서(TXT) 저장
+        readable_report = f"""
+        [웹소설 기획안 보고서]
+        
+        1. 작품 정보
+        - 제목: {plan_data.get('title')}
+        - 장르: {plan_data.get('genre')}
+        - 키워드: {', '.join(plan_data.get('keywords', []))}
+        
+        2. 로그라인
+        "{plan_data.get('logline')}"
+        
+        3. 기획 의도
+        {plan_data.get('planning_intent')}
+        
+        4. 등장인물
         """
-        (path / "Production_Order.txt").write_text(order_sheet, encoding='utf-8')
+        for char in plan_data.get('characters', []):
+            readable_report += f"- {char['name']} ({char['role']}): {char['desc']}\n"
+            
+        readable_report += f"""
+        5. 줄거리 (시놉시스)
+        {plan_data.get('synopsis')}
+        
+        6. 차별화 포인트
+        """
+        for p in plan_data.get('selling_points', []):
+            readable_report += f"- {p}\n"
+            
+        (path / "Project_Report.txt").write_text(readable_report, encoding='utf-8')
         
         return True, f"저장 완료: {path}"
     except Exception as e:
