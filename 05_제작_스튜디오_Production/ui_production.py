@@ -2,10 +2,12 @@ import streamlit as st
 import sys
 from pathlib import Path
 
-# 경로 설정
-current_dir = Path(__file__).parent
+# 루트 경로 설정
+current_dir = Path(__file__).resolve().parent
 root_dir = current_dir.parent
-sys.path.append(str(root_dir))
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
 import system_utils as utils
 
 try:
@@ -15,14 +17,17 @@ except ImportError:
     treatment_writer = None
     main_writer = None
 
-def render_production_tab(planning_dir, production_dir):
+# ✅ 핵심 변경: 함수 이름을 'render'로 통일했습니다.
+def render(planning_dir, production_dir):
     st.subheader("🏭 실시간 제작 현황")
     
+    # 작가 모듈 로드 체크
     if not treatment_writer:
-        st.error("작가 모듈(treatment_writer, main_writer)이 없습니다. 파일명을 확인하세요.")
+        st.error("작가 모듈을 불러오지 못했습니다. (treatment_writer.py 확인)")
         return
 
     active = st.session_state.get('active_projects', [])
+    
     if not active:
         st.info("대기 중 (창고에서 투입해주세요)")
     else:
@@ -45,29 +50,28 @@ def render_production_tab(planning_dir, production_dir):
                 
                 # 1단계: 트리트먼트
                 with c1:
-                    st.info("Step 1. 트리트먼트")
+                    st.info("Step 1. 트리트먼트 (설계)")
                     if st.button("🏗️ 생성", key=f"btn_t_{pname}"):
                         with st.spinner("플롯 설계 중..."):
                             res = treatment_writer.generate_treatment(d)
                             st.session_state[k_treat] = res
                             st.rerun()
                     
-                    txt_treat = st.text_area("설계도", value=st.session_state[k_treat], height=400, key=f"txt_t_{pname}")
-                    st.session_state[k_treat] = txt_treat
+                    st.text_area("설계도 내용", value=st.session_state[k_treat], height=400, key=f"txt_t_{pname}")
 
                 # 2단계: 본문
                 with c2:
-                    st.info("Step 2. 본문 집필")
+                    st.info("Step 2. 본문 집필 (생산)")
                     if st.button("✍️ 집필", key=f"btn_w_{pname}", type="primary"):
-                        if not st.session_state[k_treat]: st.error("트리트먼트가 필요합니다.")
+                        if not st.session_state[k_treat]: 
+                            st.error("트리트먼트 먼저!")
                         else:
-                            with st.spinner("집필 중..."):
+                            with st.spinner("본문 집필 중..."):
                                 res = main_writer.write_episode(d, st.session_state[k_treat])
                                 st.session_state[k_main] = res
                                 st.rerun()
                                 
-                    txt_main = st.text_area("원고", value=st.session_state[k_main], height=400, key=f"txt_m_{pname}")
-                    st.session_state[k_main] = txt_main
+                    st.text_area("원고 내용", value=st.session_state[k_main], height=400, key=f"txt_m_{pname}")
 
                 if st.button("⏹️ 중단", key=f"stop_{pname}"):
                     st.session_state.active_projects.remove(pname)

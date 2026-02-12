@@ -1,7 +1,7 @@
 import streamlit as st
 import strategy_judge as engine
 
-# 함수 이름을 'render'로 통일
+# ✅ 핵심 변경: 함수 이름을 'render'로 통일했습니다.
 def render():
     st.subheader("🧠 신규 기획 생성")
     c1, c2 = st.columns([1, 1.5])
