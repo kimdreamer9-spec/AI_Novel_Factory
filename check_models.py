@@ -1,22 +1,35 @@
 import os
-import google.generativeai as genai
-from dotenv import load_dotenv
+import sys
 from pathlib import Path
+from dotenv import load_dotenv
+import google.generativeai as genai
 
-# 설정 로드
-FIXED_ROOT = Path(r"C:\Users\msi\OneDrive\바탕 화면\AI_Novel_Factory_Final")
-load_dotenv(dotenv_path=FIXED_ROOT / ".env")
-genai.configure(api_key=os.getenv("GEMINI_KEY_PLANNING"))
+# 1. 환경 변수 로드
+current_dir = Path(__file__).resolve().parent
+load_dotenv(current_dir / ".env")
 
-print("🔍 [API 모델 명단 조회 중...]")
-print("="*50)
+# 2. 모델 셀렉터 호출
+sys.path.append(str(current_dir))
+from model_selector import find_best_model
+target_model = find_best_model()
 
-try:
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            print(f" - {m.name}")
-            
-    print("="*50)
-    print("👉 위 목록에서 '3.0'이나 'exp'가 들어간 이름을 찾으세요.")
-except Exception as e:
-    print(f"❌ 에러 발생: {e}")
+print("\n" + "="*50)
+print(f"🔌 [AI Factory] 2026 Engine Status Check")
+print("="*50 + "\n")
+
+gemini_key = os.getenv("GEMINI_KEY_PLANNING") or os.getenv("GEMINI_API_KEY")
+
+if not gemini_key:
+    print("🔴 Google API Key: Missing")
+else:
+    print(f"🟢 Target Model: {target_model}")
+    try:
+        genai.configure(api_key=gemini_key)
+        model = genai.GenerativeModel(target_model)
+        # 2026년의 지능 테스트
+        res = model.generate_content("2026년 한국 웹소설 시장의 핵심 트렌드 하나만 말해줘.")
+        print(f"✅ [연결 성공] 응답: {res.text[:50]}...")
+    except Exception as e:
+        print(f"❌ [연결 실패] 에러: {e}")
+
+print("\n" + "="*50)
