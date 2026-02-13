@@ -1,228 +1,146 @@
 import streamlit as st
 import sys
-import time
 import pandas as pd
 from pathlib import Path
 
-# =========================================================
-# 🏗️ [Path Safety] 경로 고속도로 (Path Fix)
-# =========================================================
-current_dir = Path(__file__).resolve().parent
-root_dir = current_dir.parent
-if str(current_dir) not in sys.path: sys.path.append(str(current_dir))
-if str(root_dir) not in sys.path: sys.path.append(str(root_dir))
+# [Path Safety]
+CURRENT_FILE_PATH = Path(__file__).resolve()
+PLANNING_DIR = CURRENT_FILE_PATH.parent
+PROJECT_ROOT = PLANNING_DIR.parent
 
-# 필수 모듈 로드 (안전 장치 포함)
-try:
-    import system_utils as utils
-except ImportError:
-    st.error("❌ 'system_utils.py'를 찾을 수 없습니다. 루트 경로를 확인하세요.")
+if str(PLANNING_DIR) not in sys.path: sys.path.append(str(PLANNING_DIR))
+if str(PROJECT_ROOT) not in sys.path: sys.path.append(str(PROJECT_ROOT))
 
-try:
-    import strategy_judge as engine
-except ImportError:
-    engine = None
-    st.warning("⚠️ 'strategy_judge.py' 로드 실패. [디벨롭] 기능을 사용할 수 없습니다.")
+# [Module Load]
+try: import system_utils as utils
+except: pass
+try: import strategy_judge as engine
+except: engine = None
 
-# 🔥 [Plotly Safety] 그래프 엔진 점검
+# [Plotly Check]
 try:
     import plotly.express as px
     HAS_PLOTLY = True
-except ImportError:
-    HAS_PLOTLY = False
+except: HAS_PLOTLY = False
 
-# =========================================================
-# 🎨 [Function] 시각화 도구
-# =========================================================
 def draw_radar_chart(plan_data):
-    """기획안의 5각 능력치(육각형) 그래프 생성"""
     if not HAS_PLOTLY: return None
-    
-    # 데이터가 없으면 기본값으로 방어
-    stats = plan_data.get('stats', {
-        "대중성": 50, "독창성": 50, "캐릭터": 50, "개연성": 50, "확장성": 50
-    })
-    
-    df = pd.DataFrame(dict(
-        r=list(stats.values()),
-        theta=list(stats.keys())
-    ))
-    
+    stats = plan_data.get('stats', {"대중성":50,"독창성":50,"캐릭터":50,"개연성":50,"확장성":50})
+    df = pd.DataFrame(dict(r=list(stats.values()), theta=list(stats.keys())))
     fig = px.line_polar(df, r='r', theta='theta', line_close=True, range_r=[0, 100])
-    fig.update_traces(fill='toself', line_color='#FF4B4B') # 강렬한 레드
+    fig.update_traces(fill='toself', line_color='#FF4B4B')
     fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100]),
-            bgcolor='rgba(0,0,0,0)'
-        ),
-        paper_bgcolor='rgba(0,0,0,0)',
-        showlegend=False,
-        margin=dict(l=20, r=20, t=20, b=20)
+        polar=dict(radialaxis=dict(visible=True, range=[0, 100]), bgcolor='rgba(0,0,0,0)'),
+        paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=20, r=20, t=20, b=20),
+        height=250
     )
     return fig
 
-# =========================================================
-# 🚀 [Main] 렌더링 엔진
-# =========================================================
 def render(planning_dir):
-    st.markdown("## 🗂️ 기획 창고 (Project Warehouse)")
-    st.caption("📦 저장된 기획안 관리 • 🏭 제작소 투입 • 🛠️ 리메이크(Develop)")
-
-    if not HAS_PLOTLY:
-        st.warning("⚠️ `pip install plotly`를 설치하면 육각형 능력치 그래프를 볼 수 있습니다.")
+    st.markdown("## 🗂️ 기획 창고 (Warehouse)")
+    st.caption("📦 보관된 IP 관리 • 🏭 제작소 투입 • 🛠️ 기획 디벨롭")
 
     # 1. 파일 스캔
     try:
-        if not planning_dir.exists():
-            st.error(f"❌ 기획 폴더가 없습니다: {planning_dir}")
-            return
-            
         projs = [f for f in planning_dir.iterdir() if f.is_dir() and not f.name.startswith(".")]
         projs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-    except Exception as e:
-        st.error(f"폴더 스캔 오류: {e}")
-        projs = []
+    except: projs = []
 
     if not projs:
-        st.info("📭 보관된 기획안이 없습니다. [전략기획실]에서 기획을 생성하세요.")
+        st.info("📭 창고가 비었습니다. [전략기획실]에서 새로운 IP를 발굴하세요.")
         return
 
-    # 2. 프로젝트 리스트 렌더링
+    # 2. 프로젝트 리스트 카드뷰
     for folder in projs:
-        # 데이터 로드 (system_utils 활용)
         data = utils.load_project_data(folder)
-        if not data:
-            st.warning(f"⚠️ 데이터를 불러올 수 없습니다: {folder.name}")
-            continue
-            
-        label = f"📁 {data.get('title', '무제')} (v{data.get('version', '1.0')})"
+        if not data: continue
         
-        # [손상된 파일 처리]
-        if data.get('is_corrupted'):
-            with st.expander(f"❌ [손상됨] {folder.name}"):
-                st.error("데이터가 손상되었습니다.")
-                if st.button("영구 삭제", key=f"del_corrupt_{folder.name}"):
-                    utils.delete_project(folder)
-                    st.rerun()
-            continue
-
-        # [정상 파일 렌더링]
-        with st.expander(label, expanded=False):
-            # --- [Part 1: 대시보드] ---
-            c1, c2 = st.columns([1, 1.5])
+        # 카드 헤더 (제목 + 버전)
+        version = data.get('version', '1.0')
+        title_label = f"📁 {data.get('title', '무제')} (v{version})"
+        
+        with st.expander(title_label, expanded=False):
+            # --- [Upper Dashboard] ---
+            c1, c2 = st.columns([1, 2])
             
-            with c1:
-                st.markdown("##### ⚡ 전력 분석 (Radar)")
+            with c1: # 레이더 차트
                 if HAS_PLOTLY:
                     fig = draw_radar_chart(data)
-                    if fig: st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.progress(data.get('stats', {}).get('대중성', 50) / 100)
-                    st.caption("그래프 엔진 없음 (수치로 대체)")
-            
-            with c2:
-                st.markdown("##### 📋 핵심 요약")
-                st.info(f"**로그라인:** {data.get('logline')}")
+                    st.metric("종합 점수", f"{sum(data.get('stats',{}).values())/5:.1f}점")
+
+            with c2: # 핵심 정보
+                st.info(f"**Logline:** {data.get('logline')}")
                 st.caption(f"장르: {data.get('genre')} | 타겟: {data.get('target_reader', '전체')}")
-                
-                # SWOT (데이터 있으면)
-                swot = data.get('swot_analysis', {})
-                if swot:
-                    s_col, w_col = st.columns(2)
-                    s_col.success(f"**강점:** {swot.get('strength', '-')}")
-                    w_col.error(f"**약점:** {swot.get('weakness', '-')}")
+                # 분석 결과 (디벨롭 코멘트 등)
+                if data.get('remake_analysis'):
+                    ra = data['remake_analysis']
+                    st.success(f"🔔 **최근 수정 내역:** {ra.get('verdict', '수정 완료')}")
 
             st.divider()
 
-            # --- [Part 2: 상세 내용 (탭 뷰어)] ---
-            t1, t2, t3, t4 = st.tabs(["📜 시놉시스", "👥 캐릭터(5인)", "🗺️ 플롯(1-5화)", "💡 포인트"])
-            
-            with t1:
-                st.write(data.get('synopsis'))
-            
+            # --- [Detail Tabs] ---
+            t1, t2, t3, t4 = st.tabs(["📜 시놉시스", "👥 캐릭터", "🗺️ 플롯", "💰 세일즈 포인트"])
+            with t1: st.write(data.get('synopsis'))
             with t2:
-                for char in data.get('characters', []):
-                    with st.container(border=True):
-                        st.markdown(f"**{char.get('name')}** ({char.get('role')})")
-                        st.caption(f"MBTI: {char.get('mbti', '-')} | {char.get('desc')}")
-            
+                for c in data.get('characters', []):
+                    st.markdown(f"**{c.get('name')}** ({c.get('role')}) - {c.get('desc')}")
             with t3:
-                plots = data.get('episode_plots', [])
-                if isinstance(plots, list):
-                    for plot in plots:
-                        st.markdown(f"**[{plot.get('ep')}화] {plot.get('title')}**")
-                        st.caption(plot.get('summary'))
-                else:
-                    st.write(plots) # 텍스트 형태일 경우
-
+                for p in data.get('episode_plots', []):
+                    with st.expander(f"{p.get('ep')}화: {p.get('title')}"):
+                        st.write(p.get('summary'))
             with t4:
                 for sp in data.get('sales_points', []):
                     st.markdown(f"✅ {sp}")
 
-            st.divider()
+            st.markdown("---")
 
-            # --- [Part 3: 액션 컨트롤 (제작/수정/삭제)] ---
+            # --- [Control Center] ---
             col_prod, col_dev, col_del = st.columns([2, 2, 1])
-            
-            # [A] 제작소 투입 (슬롯 시스템)
-            with col_prod:
-                with st.popover("🚀 제작 투입 (Send to Studio)"):
-                    st.write("작업할 스튜디오(슬롯)를 선택하세요.")
-                    # 세션 상태에서 활성 슬롯 확인
-                    active_slots = st.session_state.get('active_projects', [])
-                    
-                    # 1~10번 슬롯 생성
-                    slot_options = []
-                    for i in range(1, 11):
-                        # (간단 구현) 실제로는 슬롯별 상태 관리가 필요함
-                        slot_options.append(f"Studio {i}")
 
-                    selected_slot = st.selectbox("스튜디오 선택", slot_options)
+            # [Action A] 제작소 투입 (슬롯 선택)
+            with col_prod:
+                with st.popover("🏭 제작 투입 (Send to Studio)"):
+                    st.markdown("#### 스튜디오 배정")
                     
-                    if st.button("제작 시작", key=f"go_{folder.name}", type="primary"):
-                        if 'active_projects' not in st.session_state:
-                            st.session_state.active_projects = []
-                        
-                        # 중복 체크 (폴더명 기준)
-                        if folder.name in st.session_state.active_projects:
-                            st.warning("이미 제작 중인 프로젝트입니다.")
-                        else:
+                    # 현재 활성 슬롯 확인
+                    active = st.session_state.get('active_projects', [])
+                    
+                    # 1~10번 슬롯 UI
+                    slot = st.selectbox("슬롯 선택", [f"Studio {i}" for i in range(1, 11)])
+                    
+                    if st.button("🚀 제작 시작", key=f"go_{folder.name}", type="primary"):
+                        if folder.name not in active:
                             st.session_state.active_projects.append(folder.name)
-                            st.toast(f"'{data.get('title')}' 작품이 {selected_slot}에 투입되었습니다!", icon="🏭")
+                            st.toast(f"'{data.get('title')}' -> {slot} 배정 완료!", icon="✅")
                             time.sleep(1)
-            
-            # [B] 디벨롭 (스마트 리메이크)
+                        else:
+                            st.warning("이미 제작 중인 프로젝트입니다.")
+
+            # [Action B] 스마트 디벨롭 (수정)
             with col_dev:
                 with st.popover("🛠️ 디벨롭 (Smart Remake)"):
-                    st.markdown("### 👨‍🏫 수석 기획자(Analyst) 대화")
-                    st.caption("단순한 수정이 아닙니다. 사장님의 지시를 상업적으로 분석하여 경고하거나 추천합니다.")
+                    st.markdown("#### 👨‍🏫 기획 수정 지시")
+                    req = st.text_area("수정 사항을 입력하세요", key=f"req_{folder.name}", placeholder="예: 주인공 성격을 좀 더 냉철하게 바꿔줘.")
                     
-                    req = st.text_area("수정 지시사항 (Prompt)", key=f"req_{folder.name}", placeholder="예: 주인공 성격을 더 사이코패스처럼 바꿔줘. 근데 로맨스는 유지해.")
-                    
-                    if st.button("분석 및 수정 실행", key=f"do_{folder.name}"):
+                    if st.button("⚡ 수정 실행", key=f"do_{folder.name}"):
                         if not engine:
-                            st.error("기획 엔진(strategy_judge)이 로드되지 않았습니다.")
+                            st.error("기획 엔진(Strategy Judge) 로드 실패")
                         else:
-                            with st.status("🕵️ **전략기획실로 데이터를 전송합니다...**") as status:
-                                # 1. 백엔드(Judge)에게 일감 던지기 (리메이크 요청)
-                                new_p, logs = engine.remake_planning(data, req)
-                                
-                                # 2. 결과 분석 표시
-                                if new_p.get('remake_analysis'):
-                                    ra = new_p['remake_analysis']
-                                    st.info(f"**[분석 결과]**\n👍 장점: {ra.get('pros')}\n👎 위험: {ra.get('cons')}\n⚖️ 판단: {ra.get('verdict')}")
-                                
-                                status.update(label="수정 완료! 버전이 업데이트됩니다.", state="complete")
-                                
-                                # 3. 저장 (새 버전 생성)
-                                utils.create_new_version(folder, new_p)
-                                time.sleep(2)
-                                st.rerun()
+                            with st.status("🧠 기획자가 문서를 수정하고 있습니다...", expanded=True) as status:
+                                st.write("분석 중...")
+                                new_p, msg = engine.remake_planning(data, req)
+                                if "Success" in msg:
+                                    utils.create_new_version(folder, new_p)
+                                    status.update(label="✅ 수정 완료! (v1.x -> v1.y)", state="complete")
+                                    time.sleep(1.5)
+                                    st.rerun()
+                                else:
+                                    st.error(f"오류: {msg}")
 
-            # [C] 폐기
+            # [Action C] 폐기
             with col_del:
                 if st.button("🗑️ 폐기", key=f"del_{folder.name}"):
                     utils.delete_project(folder)
-                    st.toast("프로젝트가 영구 삭제되었습니다.")
-                    time.sleep(1)
                     st.rerun()
