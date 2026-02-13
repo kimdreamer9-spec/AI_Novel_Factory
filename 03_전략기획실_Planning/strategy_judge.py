@@ -6,32 +6,37 @@ import random
 from pathlib import Path
 
 # =========================================================
-# ⚖️ [전략기획실장] Strategy Judge (Full Version)
-# 역할: 신규 기획(Create) + 기획 수정(Remake) 총괄
+# ⚖️ [전략기획실장] Strategy Judge (System Logic)
 # =========================================================
 
+# 1. [Fix] 절대 경로 변수명 통일 (CURRENT_DIR)
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
 
+# 시스템 경로 추가
 if str(CURRENT_DIR) not in sys.path: sys.path.append(str(CURRENT_DIR))
 if str(PROJECT_ROOT) not in sys.path: sys.path.append(str(PROJECT_ROOT))
 
+# 2. 모듈 로드
 try: import creative_planner
 except: creative_planner = None
 try: import red_team_plan as red_team_critic
 except: red_team_critic = None
 
-# 신규 기획용 포맷 가이드
+# ... (TARGET_FORMAT_GUIDE 등 기존 상수 유지) ...
 TARGET_FORMAT_GUIDE = """
-[Strategy Judge's Order]
-1. Logline (Killer Hook)
-2. 5 Characters (Main, Antagonist, Helper, Rival, Extra)
-3. World View (Rules)
-4. Commercial Strategy
+[필수 출력 포맷]
+1. 작품 개요 (제목, 장르, 키워드)
+2. 로그라인 (3문장)
+3. 기획 의도 (시장성)
+4. 세계관 (Rule)
+5. 등장인물 (5인)
+6. 줄거리 (기승전결)
+7. 세일즈 포인트
 """
 
 def process_planning(mode, user_input, feedback_history=""):
-    """ [신규 기획] 3라운드 토론 """
+    """ 신규 기획 생성 (3라운드 토론) """
     if not creative_planner: return {"title": "Error"}, "Planner Missing"
     
     logs = []
@@ -44,6 +49,7 @@ def process_planning(mode, user_input, feedback_history=""):
             raw_plan = creative_planner.create_plan(round_num, instruction, mode, user_input)
             plan_data = raw_plan if isinstance(raw_plan, dict) else json.loads(raw_plan)
         except Exception as e:
+            logs.append(f"Round {round_num} Error: {e}")
             continue
 
         critique = {"score": 0}
@@ -56,62 +62,41 @@ def process_planning(mode, user_input, feedback_history=""):
         plan_data['red_team_critique'] = critique
         final_plan = plan_data
         
+        # 85점 이상이면 조기 종료
         if critique.get('score', 0) >= 85: break
         current_feedback = critique.get('improvement_instructions', 'Better logic.')
         time.sleep(1)
 
-    return final_plan, "Done"
+    return final_plan, "\n".join(logs)
 
 def remake_planning(original_plan, user_feedback):
-    """ 
-    [기획 수정] 사장님의 지시(Feedback)를 받아 기획안을 업그레이드합니다.
-    (Model Selector를 사용하는 Creative Planner를 호출하므로 1.5 문제는 없습니다.)
-    """
+    """ 기획 수정 (리메이크) """
     if not creative_planner: return original_plan, "Planner Missing"
-    
-    print(f"🛠️ [Judge] 리메이크 지시 접수: {user_feedback}")
-    
     try:
-        # 기획자에게 수정 지시 (Mode 2: Modify)
         instruction = f"""
-        [Original Plan]: {json.dumps(original_plan, ensure_ascii=False)[:3000]}...
-        [Boss's Order]: {user_feedback}
-        
-        [Mission]: 
-        1. Reflect the Boss's order perfectly.
-        2. Maintain the JSON structure.
-        3. Add 'remake_analysis' field explaining what changed.
+        [Original]: {json.dumps(original_plan, ensure_ascii=False)[:3000]}...
+        [Order]: {user_feedback}
+        [Rule]: Keep JSON structure. Add 'remake_analysis'.
         """
-        
-        # 라운드 1회만 진행 (속도 최적화)
-        raw_result = creative_planner.create_plan(1, instruction, mode=2, user_input="Remake Request")
-        new_plan = raw_result if isinstance(raw_result, dict) else json.loads(raw_result)
-        
-        # 버전 업
-        try:
-            old_ver = float(original_plan.get('version', '1.0'))
-            new_plan['version'] = str(round(old_ver + 0.1, 1))
-        except: new_plan['version'] = "1.1"
-        
-        return new_plan, "Success"
-        
+        raw = creative_planner.create_plan(1, instruction, mode=2, user_input="Remake")
+        return (raw if isinstance(raw, dict) else json.loads(raw)), "Success"
     except Exception as e:
-        print(f"⚠️ 리메이크 실패: {e}")
         return original_plan, str(e)
 
 def save_and_deploy(plan_data):
-    """ 기획안 저장 """
+    """ 
+    [Fix] CURRENT_DIR 변수 사용 확인 
+    """
     try:
         if str(PROJECT_ROOT) not in sys.path: sys.path.append(str(PROJECT_ROOT))
         import system_utils as utils
         from datetime import datetime
         
-        # 제목 안전 처리
         title = plan_data.get('title', 'Untitled')
         safe_title = "".join([c for c in title if c.isalnum() or c==' ']).strip().replace(' ', '_')[:15]
-        
-        # 타임스탬프 폴더 생성
         folder_name = f"{datetime.now().strftime('%Y%m%d_%H%M')}_{safe_title}"
+        
+        # 🔥 [여기가 문제였습니다] 이제 CURRENT_DIR이 위에서 정의되었으므로 에러 안 남
         save_path = CURRENT_DIR / folder_name
         save_path.mkdir(parents=True, exist_ok=True)
         
