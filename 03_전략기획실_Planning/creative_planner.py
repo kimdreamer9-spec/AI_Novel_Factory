@@ -118,6 +118,7 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
     2. Apply that 'Hook Style' to the User Request.
     3. Ensure the 'World View' follows the [Rules].
     4. Define 5 Characters clearly.
+    5. Analyze SWOT (Strength, Weakness, Opportunity, Threat).
 
     [Output JSON Structure]
     {{
@@ -127,6 +128,12 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
         "logline": "...",
         "planning_intent": "Strategic reason why this works commercially.",
         "world_view": "...",
+        "swot_analysis": {{
+            "strength": "...",
+            "weakness": "...",
+            "opportunity": "...",
+            "threat": "..."
+        }},
         "characters": [
             {{ "name": "...", "role": "Main Protagonist", "desc": "..." }},
             {{ "name": "...", "role": "Main Antagonist", "desc": "..." }},

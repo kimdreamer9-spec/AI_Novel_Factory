@@ -60,33 +60,53 @@ def render():
             return
 
         st.divider()
-        st.header(f"📑 {plan.get('title')}")
-        st.info(f"**로그라인:** {plan.get('logline')}")
+        st.header(f"📑 {plan.get('title', '제목 미정')}")
+        st.info(f"**로그라인:** {plan.get('logline', '생성 중...')}")
 
-        # 탭 뷰
-        t1, t2, t3 = st.tabs(["상세 설정", "플롯", "전략"])
+        # 탭 뷰 (내용이 없어도 깨지지 않도록 예외처리)
+        t1, t2, t3 = st.tabs(["상세 설정", "플롯", "전략 (SWOT)"])
         
         with t1:
             st.markdown("#### 👥 캐릭터")
-            for c in plan.get('characters', []):
-                st.markdown(f"**{c.get('name')}** ({c.get('role')}): {c.get('desc')}")
+            chars = plan.get('characters', [])
+            if chars:
+                for c in chars:
+                    st.markdown(f"**{c.get('name')}** ({c.get('role')}): {c.get('desc')}")
+            else:
+                st.caption("캐릭터 데이터 없음")
+
             st.markdown("#### 🌍 세계관")
-            st.write(plan.get('world_view'))
+            st.write(plan.get('world_view', '설정 데이터 없음'))
 
         with t2:
-            for p in plan.get('episode_plots', []):
-                with st.expander(f"{p.get('ep')}화: {p.get('title')}"):
-                    st.write(p.get('summary'))
+            plots = plan.get('episode_plots', [])
+            if plots:
+                for p in plots:
+                    with st.expander(f"{p.get('ep')}화: {p.get('title')}"):
+                        st.write(p.get('summary'))
+            else:
+                st.caption("플롯 데이터 없음")
 
         with t3:
             swot = plan.get('swot_analysis', {})
-            c1, c2 = st.columns(2)
-            c1.success(f"강점: {swot.get('strength')}")
-            c2.error(f"약점: {swot.get('weakness')}")
+            if swot:
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.success(f"**강점 (Strength):**\n{swot.get('strength', '-')}")
+                    st.info(f"**기회 (Opportunity):**\n{swot.get('opportunity', '-')}")
+                with c2:
+                    st.error(f"**약점 (Weakness):**\n{swot.get('weakness', '-')}")
+                    st.warning(f"**위협 (Threat):**\n{swot.get('threat', '-')}")
+            else:
+                st.warning("SWOT 분석 데이터가 없습니다. (재생성 권장)")
+
+            st.markdown("#### 💰 세일즈 포인트")
+            for sp in plan.get('sales_points', []):
+                st.markdown(f"✅ {sp}")
 
         # 저장 액션
         st.divider()
-        if st.button("💾 이 기획안을 [창고]에 저장"):
+        if st.button("💾 이 기획안을 [창고]에 저장", type="primary", use_container_width=True):
             ok, msg = engine.save_and_deploy(plan)
             if ok:
                 st.toast("✅ 저장 완료! [기획 창고] 탭에서 확인하세요.")
