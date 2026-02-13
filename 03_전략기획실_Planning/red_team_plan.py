@@ -31,7 +31,7 @@ if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
 
 # =========================================================
-# 📂 [Data Collection] 누락되었던 RAG 기능 완전 복구
+# 📂 [Data Collection] RAG & Blacklist Logic
 # =========================================================
 BASE_INFO_DIR = PROJECT_ROOT / "00_기준정보_보물창고"
 ANALYSIS_DIR = PROJECT_ROOT / "02_분석실_Analysis"
@@ -44,7 +44,7 @@ def get_benchmark_stories():
     if STORY_ANALYSIS_DIR.exists():
         files = list(STORY_ANALYSIS_DIR.glob("*.json"))
         if files:
-            selected = random.sample(files, min(len(files), 3)) # 토큰 절약 샘플링
+            selected = random.sample(files, min(len(files), 3)) 
             for f in selected:
                 try:
                     data = json.loads(f.read_text(encoding='utf-8'))
@@ -86,9 +86,9 @@ def call_openai_smartest(prompt):
     
     # 🔥 [2026 Model Priority]
     candidate_models = [
-        "gpt-5.2",              # 1순위: 플래그십
+        "gpt-5.2",              # 1순위: 플래그십 (압도적 성능)
         "gpt-5.1-thinking",     # 2순위: 추론 특화
-        "gpt-5.3-codex-spark",  # 3순위: 초고속
+        "gpt-5.3-codex-spark",  # 3순위: 초고속 피드백
         "o4-mini",              # 4순위: 고효율
         "gpt-4o"                # 5순위: 백업
     ]
@@ -107,7 +107,7 @@ def call_openai_smartest(prompt):
             print(f"✅ [Red Team] 연결 성공! 엔진: {model_id}")
             return response.choices[0].message.content.strip()
         except: 
-            continue
+            continue # 실패 시 다음 모델 자동 전환
             
     return None
 
@@ -121,7 +121,7 @@ def call_gemini_backup(prompt):
     except: return None
 
 # =========================================================
-# 🧨 [Execution] 비평 수행
+# 🧨 [Execution] 비평 수행 (한국어 강제)
 # =========================================================
 def critique_plan(plan_json, round_num):
     print(f"\n👹 [Red Team] 기획안 V{round_num} 정밀 진단 (GPT-5.2 Powered)...")
@@ -132,12 +132,16 @@ def critique_plan(plan_json, round_num):
     prompt = f"""
     You are **Korea's Most Critical Web Novel Editor (Red Team)** living in **2026**.
     
+    [IMPORTANT RULE]
+    **ALL OUTPUT MUST BE IN KOREAN (한국어).**
+    (JSON Key names stay in English, but Values must be Korean)
+    
     [Mission]
     Analyze the plan below. Be harsh but constructive.
     
     [Reference Data]
     1. **Existing Hits (Check Plagiarism)**: {evidence['benchmarks']}
-    2. **Banned Names**: {banned_str}
+    2. **Banned Names (Do NOT use)**: {banned_str}
     
     [Thinking Process]
     1. **Plagiarism**: Is this too similar to the [Existing Hits]?
@@ -151,9 +155,9 @@ def critique_plan(plan_json, round_num):
     {{
         "score": (Integer 0-100),
         "similarity_rate": (Integer 0-100, how similar to hits),
-        "critique_summary": "Summary of critique.",
-        "fatal_flaws": ["Flaw 1", "Flaw 2"],
-        "improvement_instructions": "Specific fixes required."
+        "critique_summary": "Summary of critique in Korean.",
+        "fatal_flaws": ["Flaw 1 (Korean)", "Flaw 2 (Korean)"],
+        "improvement_instructions": "Specific fixes required (Korean)."
     }}
     """
 
@@ -176,6 +180,6 @@ def critique_plan(plan_json, round_num):
                 result_text = result_text.replace("```", "").strip()
             return json.loads(result_text)
         except:
-            return {"score": 0, "critique_summary": "JSON Error", "fatal_flaws": ["Format Error"]}
+            return {"score": 0, "critique_summary": "JSON 파싱 오류", "fatal_flaws": ["Format Error"]}
     
-    return {"score": 0, "critique_summary": "AI Error", "fatal_flaws": ["System Error"]}
+    return {"score": 0, "critique_summary": "AI 응답 없음", "fatal_flaws": ["System Error"]}

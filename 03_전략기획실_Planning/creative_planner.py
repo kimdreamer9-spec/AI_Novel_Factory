@@ -7,16 +7,18 @@ from pathlib import Path
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# [Setup]
+# [Setup] 환경 설정 및 경로 안전장치
 CURRENT_FILE_PATH = Path(__file__).resolve()
 PLANNING_DIR = CURRENT_FILE_PATH.parent
 PROJECT_ROOT = PLANNING_DIR.parent
 
 if str(PROJECT_ROOT) not in sys.path: sys.path.append(str(PROJECT_ROOT))
 
+# API 키 로드
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 API_KEY = os.getenv("GEMINI_KEY_PLANNING") or os.getenv("GEMINI_API_KEY")
 
+# 모델 선택기 연결
 try:
     import model_selector
     MODEL_NAME = model_selector.find_best_model()
@@ -26,7 +28,7 @@ genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel(MODEL_NAME)
 
 # =========================================================
-# 📂 [RAG: Smart Sampling] 무식하게 다 안 읽고 '핵심'만 읽습니다.
+# 📂 [RAG Logic] Smart Sampling (사장님 로직 100% 보존)
 # =========================================================
 BASE_INFO_DIR = PROJECT_ROOT / "00_기준정보_보물창고"
 ANALYSIS_DIR = PROJECT_ROOT / "02_분석실_Analysis"
@@ -86,17 +88,17 @@ def gather_materials(mode):
     return context_data
 
 # =========================================================
-# ✍️ [Generator]
+# ✍️ [Generator: 2026 Creative Brain]
 # =========================================================
 
 def create_plan(round_num, feedback, mode=1, user_input=""):
     materials = gather_materials(mode)
 
     prompt = f"""
-    You are **Korea's No.1 Web Novel CP**.
-    Current Era: 2026.
+    You are **Korea's No.1 Web Novel CP (Creative Planner)**.
+    Current Era: 2026. The market demands **Fast Pacing** and **Clear Rewards**.
 
-    [Mission]: Create a specialized web novel plan.
+    [Mission]: Create a top-tier web novel plan based on the User Input.
 
     [Secret Weapon: Actual Hit Novel Snippets]
     The following texts are **RAW** snippets from mega-hit novels.
@@ -110,44 +112,52 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
     [User Request]
     "{user_input}"
 
-    [Feedback from Red Team]
+    [Feedback from Red Team (Previous Round)]
     "{feedback}"
 
-    [Thinking Process]
-    1. Read the [Hit Novel Snippets]. How do they start? What is the 'Hook'?
-    2. Apply that 'Hook Style' to the User Request.
-    3. Ensure the 'World View' follows the [Rules].
-    4. Define 5 Characters clearly.
-    5. Analyze SWOT (Strength, Weakness, Opportunity, Threat).
+    [Thinking Process (CoT)]
+    1. **Analyze the Reference**: How do the hits start? What is the 'Hook'?
+    2. **Apply to User Idea**: Inject that 'Hook Style' into the user's concept.
+    3. **World Building**: Ensure the settings follow the [Rules].
+    4. **Character Design**: Create 5 distinct characters with conflicting desires.
+    5. **SWOT Analysis**: Evaluate the commercial potential.
+    6. **Synopsis Structuring**: Plan the story flow, specifically detailing Ep 1-5.
+
+    [CRITICAL REQUIREMENT - DO NOT IGNORE]
+    1. **Synopsis**: Must cover **Episode 1 to 5** in detail. Do NOT stop at Ep 3.
+    2. **Future Plot**: Summarize the story arc after Ep 5.
+    3. **Language**: **KOREAN ONLY**.
 
     [Output JSON Structure]
     {{
-        "title": "...",
-        "genre": "...",
-        "keywords": ["..."],
-        "logline": "...",
+        "title": "Title (Catchy & Trendy)",
+        "genre": "Genre",
+        "keywords": ["Keyword1", "Keyword2", ...],
+        "logline": "One sentence summary that hooks readers.",
         "planning_intent": "Strategic reason why this works commercially.",
-        "world_view": "...",
+        "world_view": "Detailed setting rules.",
         "swot_analysis": {{
-            "strength": "...",
-            "weakness": "...",
-            "opportunity": "...",
-            "threat": "..."
+            "strength": "Strong point...",
+            "weakness": "Weak point...",
+            "opportunity": "Market opportunity...",
+            "threat": "Competition..."
         }},
         "characters": [
-            {{ "name": "...", "role": "Main Protagonist", "desc": "..." }},
-            {{ "name": "...", "role": "Main Antagonist", "desc": "..." }},
-            {{ "name": "...", "role": "Sub (Helper)", "desc": "..." }},
-            {{ "name": "...", "role": "Sub (Rival)", "desc": "..." }},
-            {{ "name": "...", "role": "Sub (Extra)", "desc": "..." }}
+            {{ "name": "Name", "role": "Main Protagonist", "desc": "Personality, Desire, Ability" }},
+            {{ "name": "Name", "role": "Main Antagonist", "desc": "..." }},
+            {{ "name": "Name", "role": "Sub (Helper)", "desc": "..." }},
+            {{ "name": "Name", "role": "Sub (Rival)", "desc": "..." }},
+            {{ "name": "Name", "role": "Sub (Extra)", "desc": "..." }}
         ],
-        "synopsis": "...",
+        "synopsis": "Full story summary (Introduction -> Development -> Turn -> Climax -> Ending)",
         "episode_plots": [
-            {{ "ep": 1, "title": "...", "summary": "..." }},
-            {{ "ep": 2, "title": "...", "summary": "..." }},
-            {{ "ep": 3, "title": "...", "summary": "..." }}
+            {{ "ep": 1, "title": "Ep 1 Title", "summary": "Detailed event..." }},
+            {{ "ep": 2, "title": "Ep 2 Title", "summary": "Detailed event..." }},
+            {{ "ep": 3, "title": "Ep 3 Title", "summary": "Detailed event..." }},
+            {{ "ep": 4, "title": "Ep 4 Title", "summary": "Detailed event..." }},
+            {{ "ep": 5, "title": "Ep 5 Title", "summary": "Detailed event..." }}
         ],
-        "sales_points": ["..."]
+        "sales_points": ["Point 1", "Point 2", "Point 3"]
     }}
     """
     
