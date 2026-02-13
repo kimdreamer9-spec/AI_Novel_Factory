@@ -53,59 +53,67 @@ print(f"🧠 [System] Creative Planner 가동 | Engine: {MODEL_NAME}")
 # =========================================================
 # 📂 [RAG] 데이터 수집 (타겟팅 정밀 보정 완료)
 # =========================================================
-# 🚨 사장님 지시: 설정집(X) -> 작법서(O), 성공작 분석(O), 트렌드(O)
+# 🚨 사장님 지시: 설정 트랜드(Category) -> 작법서(Guide) -> 성공작 분석(DNA) -> 트렌드(Trend)
 BASE_INFO_DIR = PROJECT_ROOT / "00_기준정보_보물창고"
 ANALYSIS_DIR = PROJECT_ROOT / "02_분석실_Analysis"
 
 # 1. 기준 정보 타겟
 RUBRIC_FILE = BASE_INFO_DIR / "standard-rubric.json"
 TIP_DIR = BASE_INFO_DIR / "05_팁_보물창고"
-THEORY_DIR = BASE_INFO_DIR / "작법_이론서"  # [추가] 이론서 포함
+SETTING_TREND_DIR = BASE_INFO_DIR / "04_설정_트랜드" # [New Target] 카테고리 결정의 핵심
+THEORY_DIR = BASE_INFO_DIR / "작법_이론서"
 
 # 2. 분석 데이터 타겟
 TREND_REPORT = ANALYSIS_DIR / "00_통합_트렌드_리포트.json"
-CHAR_ANALYSIS_DIR = ANALYSIS_DIR / "02_캐릭터_분석" # [추가] 성공작 캐릭터 구조
-STORY_ANALYSIS_DIR = ANALYSIS_DIR / "03_스토리_분석" # [추가] 성공작 플롯 구조
+CHAR_ANALYSIS_DIR = ANALYSIS_DIR / "02_캐릭터_분석"
+STORY_ANALYSIS_DIR = ANALYSIS_DIR / "03_스토리_분석"
 
 def gather_materials(mode):
     """
-    분석실 데이터(성공작)와 보물창고 팁(작법)을 RAG로 가져옵니다.
+    RAG 데이터를 수집하여 '기획의 재료'를 준비합니다.
     """
     context_data = {
         "rubric": "Standard Rubric Not Found.",
         "trend": "Trend Report Not Found.",
+        "setting_trend": "", # [New] 설정 트랜드 (카테고리 결정용)
         "tips_and_theory": "",
-        "success_dna": ""  # 성공작들의 DNA (캐릭터/스토리 구조)
+        "success_dna": ""
     }
 
     # 1. 루브릭 & 트렌드 로드
     if RUBRIC_FILE.exists(): context_data["rubric"] = RUBRIC_FILE.read_text(encoding='utf-8')
     if TREND_REPORT.exists(): context_data["trend"] = TREND_REPORT.read_text(encoding='utf-8')
 
-    # 2. 팁 & 이론서 로드 (랜덤 샘플링으로 다양성 확보)
+    # 2. 설정 트랜드 (카테고리 결정의 핵심) [Step 1]
+    if SETTING_TREND_DIR.exists():
+        setting_files = list(SETTING_TREND_DIR.rglob("*.md"))
+        if setting_files:
+            # 설정 트랜드 파일들은 '헌법'이므로 가능한 많이 참조 (토큰 허용 범위 내)
+            selected_settings = random.sample(setting_files, min(len(setting_files), 3))
+            for f in selected_settings:
+                context_data["setting_trend"] += f"\n[Setting Trend & Rule: {f.name}]\n{f.read_text(encoding='utf-8')[:2000]}\n"
+
+    # 3. 팁 & 이론서 로드 (랜덤 샘플링) [Step 2]
     tip_files = []
     if TIP_DIR.exists(): tip_files.extend(list(TIP_DIR.glob("*.md")) + list(TIP_DIR.glob("*.txt")))
     if THEORY_DIR.exists(): tip_files.extend(list(THEORY_DIR.glob("*.txt")))
     
     if tip_files:
-        # 이론서 1개 + 팁 3개 정도 섞어서 제공
         selected_tips = random.sample(tip_files, min(len(tip_files), 4))
         for tip in selected_tips:
             content = tip.read_text(encoding='utf-8')
             context_data["tips_and_theory"] += f"\n[Writing Guide: {tip.name}]\n{content[:1500]}...\n"
 
-    # 3. 성공작 분석 데이터 로드 (캐릭터/스토리) -> "성공 공식" 주입
+    # 4. 성공작 분석 데이터 로드 [Step 3]
     analysis_files = []
     if CHAR_ANALYSIS_DIR.exists(): analysis_files.extend(list(CHAR_ANALYSIS_DIR.glob("*.json")))
     if STORY_ANALYSIS_DIR.exists(): analysis_files.extend(list(STORY_ANALYSIS_DIR.glob("*.json")))
     
     if analysis_files:
-        # 성공작 2개 정도를 참고하여 "이런 느낌으로 짜라"고 지시
         selected_analysis = random.sample(analysis_files, min(len(analysis_files), 2))
         for a in selected_analysis:
             try:
                 content = json.loads(a.read_text(encoding='utf-8'))
-                # 전체 다 넣으면 너무 기니까 핵심 요약이나 구조 부분만 추출
                 summary = json.dumps(content.get("core_analysis", {}) or content, ensure_ascii=False)
                 context_data["success_dna"] += f"\n[Success Case Reference: {a.name}]\n{summary[:2000]}...\n"
             except: pass
@@ -141,10 +149,11 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
     {mode_instruction}
     
     [Information Architecture (RAG) - Your Database]
-    1. **Market Trend**: {materials['trend'][:2000]} (Reflect this strictly)
-    2. **Success DNA (Benchmarks)**: {materials['success_dna']} (Mimic the structure of these hits)
-    3. **Writing Theory & Tips**: {materials['tips_and_theory']}
-    4. **Evaluation Standard**: {materials['rubric'][:1000]}
+    1. **Setting Trend (Constitution)**: {materials['setting_trend']} (Follow these rules strictly!)
+    2. **Market Trend**: {materials['trend'][:1500]}
+    3. **Success DNA (Benchmarks)**: {materials['success_dna']}
+    4. **Writing Theory & Tips**: {materials['tips_and_theory']}
+    5. **Evaluation Standard**: {materials['rubric'][:1000]}
 
     [User Request]
     "{user_input}"
@@ -153,12 +162,23 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
     "{feedback}" (You MUST fix these points in this draft)
 
     ------------------------------------------------------------------
-    [Reasoning Process (Chain of Thought)]
-    Before generating the JSON, you must think in this order (Implicitly):
-    1. **Trend Check**: Analyze the user request against the 'Market Trend'.
-    2. **Character Build**: Design **EXACTLY 5 characters** that create conflict (Protagonist vs Antagonist). Use the 'Success DNA' to build attractive traits.
-    3. **Structure**: Apply the '3-Act Structure' found in the Writing Theory.
-    4. **Self-Evaluation**: Provide Stats (0-100) and SWOT analysis objectively.
+    [Reasoning Process (Chain of Thought) - YOU MUST FOLLOW THIS ORDER]
+    Before generating the JSON, visualize this pipeline:
+    
+    1. **Step 1: Category & Rule Definition (From [Setting Trend])**
+       - Check the User Request against the 'Setting Trend'.
+       - Decide the Genre (e.g., Modern Fantasy, Regression, Apocalypse).
+       - Apply the 'Physics' of that genre (e.g., Status Window = Wealth, not Strength).
+       
+    2. **Step 2: Planning Standard (From [Writing Theory])**
+       - Apply the '3-Act Structure' or 'Intro Formula'.
+       - Ensure the protagonist is 'Professional' and 'Active'.
+       
+    3. **Step 3: Detail Construction (From [Success DNA])**
+       - Benchmarking successful characters and plot twists.
+       - Create **EXACTLY 5 Characters** with distinct roles and conflicts.
+       
+    **DO NOT Self-Censor.** Be Creative. The Red Team will handle the critique later.
     ------------------------------------------------------------------
 
     [Output Requirement]
@@ -213,7 +233,7 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
         response = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
-                temperature=0.85, # 창의성 약간 상향
+                temperature=0.85, # 창의성을 위해 높게 유지
                 top_p=0.9,
                 top_k=40
             )
@@ -238,5 +258,5 @@ def create_plan(round_num, feedback, mode=1, user_input=""):
 
 # (테스트 실행용)
 if __name__ == "__main__":
-    print("🧪 Testing Creative Planner (Targeting Success DNA)...")
+    print("🧪 Testing Creative Planner (Step-by-Step Logic)...")
     # ...

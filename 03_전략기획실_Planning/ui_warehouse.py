@@ -12,11 +12,17 @@ root_dir = current_dir.parent
 if str(current_dir) not in sys.path: sys.path.append(str(current_dir))
 if str(root_dir) not in sys.path: sys.path.append(str(root_dir))
 
-import system_utils as utils
+# 필수 모듈 로드 (안전 장치 포함)
+try:
+    import system_utils as utils
+except ImportError:
+    st.error("❌ 'system_utils.py'를 찾을 수 없습니다. 루트 경로를 확인하세요.")
+
 try:
     import strategy_judge as engine
 except ImportError:
     engine = None
+    st.warning("⚠️ 'strategy_judge.py' 로드 실패. [디벨롭] 기능을 사용할 수 없습니다.")
 
 # 🔥 [Plotly Safety] 그래프 엔진 점검
 try:
@@ -25,6 +31,9 @@ try:
 except ImportError:
     HAS_PLOTLY = False
 
+# =========================================================
+# 🎨 [Function] 시각화 도구
+# =========================================================
 def draw_radar_chart(plan_data):
     """기획안의 5각 능력치(육각형) 그래프 생성"""
     if not HAS_PLOTLY: return None
@@ -52,6 +61,9 @@ def draw_radar_chart(plan_data):
     )
     return fig
 
+# =========================================================
+# 🚀 [Main] 렌더링 엔진
+# =========================================================
 def render(planning_dir):
     st.markdown("## 🗂️ 기획 창고 (Project Warehouse)")
     st.caption("📦 저장된 기획안 관리 • 🏭 제작소 투입 • 🛠️ 리메이크(Develop)")
@@ -61,9 +73,15 @@ def render(planning_dir):
 
     # 1. 파일 스캔
     try:
+        if not planning_dir.exists():
+            st.error(f"❌ 기획 폴더가 없습니다: {planning_dir}")
+            return
+            
         projs = [f for f in planning_dir.iterdir() if f.is_dir() and not f.name.startswith(".")]
         projs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-    except: projs = []
+    except Exception as e:
+        st.error(f"폴더 스캔 오류: {e}")
+        projs = []
 
     if not projs:
         st.info("📭 보관된 기획안이 없습니다. [전략기획실]에서 기획을 생성하세요.")
@@ -71,10 +89,15 @@ def render(planning_dir):
 
     # 2. 프로젝트 리스트 렌더링
     for folder in projs:
+        # 데이터 로드 (system_utils 활용)
         data = utils.load_project_data(folder)
+        if not data:
+            st.warning(f"⚠️ 데이터를 불러올 수 없습니다: {folder.name}")
+            continue
+            
         label = f"📁 {data.get('title', '무제')} (v{data.get('version', '1.0')})"
         
-        # 손상된 파일 처리
+        # [손상된 파일 처리]
         if data.get('is_corrupted'):
             with st.expander(f"❌ [손상됨] {folder.name}"):
                 st.error("데이터가 손상되었습니다.")
@@ -83,7 +106,7 @@ def render(planning_dir):
                     st.rerun()
             continue
 
-        # 정상 파일 렌더링
+        # [정상 파일 렌더링]
         with st.expander(label, expanded=False):
             # --- [Part 1: 대시보드] ---
             c1, c2 = st.columns([1, 1.5])
@@ -92,7 +115,7 @@ def render(planning_dir):
                 st.markdown("##### ⚡ 전력 분석 (Radar)")
                 if HAS_PLOTLY:
                     fig = draw_radar_chart(data)
-                    st.plotly_chart(fig, use_container_width=True)
+                    if fig: st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.progress(data.get('stats', {}).get('대중성', 50) / 100)
                     st.caption("그래프 엔진 없음 (수치로 대체)")
@@ -124,9 +147,13 @@ def render(planning_dir):
                         st.caption(f"MBTI: {char.get('mbti', '-')} | {char.get('desc')}")
             
             with t3:
-                for plot in data.get('episode_plots', []):
-                    st.markdown(f"**[{plot.get('ep')}화] {plot.get('title')}**")
-                    st.caption(plot.get('summary'))
+                plots = data.get('episode_plots', [])
+                if isinstance(plots, list):
+                    for plot in plots:
+                        st.markdown(f"**[{plot.get('ep')}화] {plot.get('title')}**")
+                        st.caption(plot.get('summary'))
+                else:
+                    st.write(plots) # 텍스트 형태일 경우
 
             with t4:
                 for sp in data.get('sales_points', []):
@@ -147,9 +174,7 @@ def render(planning_dir):
                     # 1~10번 슬롯 생성
                     slot_options = []
                     for i in range(1, 11):
-                        status = "🟢 빈 슬롯"
-                        # (간단 구현) 실제로는 슬롯별 매핑이 필요하나, 여기선 리스트 존재 여부로 체크
-                        # 고도화를 위해선 딕셔너리 관리가 필요함. 일단 리스트 추가 방식.
+                        # (간단 구현) 실제로는 슬롯별 상태 관리가 필요함
                         slot_options.append(f"Studio {i}")
 
                     selected_slot = st.selectbox("스튜디오 선택", slot_options)
@@ -158,7 +183,7 @@ def render(planning_dir):
                         if 'active_projects' not in st.session_state:
                             st.session_state.active_projects = []
                         
-                        # 중복 체크
+                        # 중복 체크 (폴더명 기준)
                         if folder.name in st.session_state.active_projects:
                             st.warning("이미 제작 중인 프로젝트입니다.")
                         else:
@@ -176,22 +201,20 @@ def render(planning_dir):
                     
                     if st.button("분석 및 수정 실행", key=f"do_{folder.name}"):
                         if not engine:
-                            st.error("기획 엔진이 로드되지 않았습니다.")
+                            st.error("기획 엔진(strategy_judge)이 로드되지 않았습니다.")
                         else:
-                            with st.status("🕵️ **지시사항을 분석 중입니다...**") as status:
-                                ctx = f"Original Title: {data.get('title')}\nOriginal Synopsis: {data.get('synopsis')[:200]}"
+                            with st.status("🕵️ **전략기획실로 데이터를 전송합니다...**") as status:
+                                # 1. 백엔드(Judge)에게 일감 던지기 (리메이크 요청)
+                                new_p, logs = engine.remake_planning(data, req)
                                 
-                                # Mode 2: 유저 기획 디벨롭 (리메이크)
-                                new_p, logs = engine.process_planning(2, ctx, feedback_history=req)
-                                
-                                # 분석 결과 표시 (Strategy Judge가 remake_analysis를 줌)
+                                # 2. 결과 분석 표시
                                 if new_p.get('remake_analysis'):
                                     ra = new_p['remake_analysis']
                                     st.info(f"**[분석 결과]**\n👍 장점: {ra.get('pros')}\n👎 위험: {ra.get('cons')}\n⚖️ 판단: {ra.get('verdict')}")
                                 
-                                status.update(label="수정 완료! 새로운 버전으로 저장합니다.", state="complete")
+                                status.update(label="수정 완료! 버전이 업데이트됩니다.", state="complete")
                                 
-                                # 새 버전 저장
+                                # 3. 저장 (새 버전 생성)
                                 utils.create_new_version(folder, new_p)
                                 time.sleep(2)
                                 st.rerun()

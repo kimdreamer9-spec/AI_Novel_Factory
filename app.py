@@ -1,116 +1,125 @@
 import sys
 import os
-from pathlib import Path
 import streamlit as st
+from pathlib import Path
+from dotenv import load_dotenv
 
 # =========================================================
-# 🏗️ [System Path Architecture] 경로 고속도로 개통
+# 🏗️ [System Setup] 절대 경로 및 환경 설정 (가장 먼저 실행)
 # =========================================================
-# 1. 현재 위치 및 루트 경로 확정
-current_dir = Path(__file__).resolve().parent
-root_dir = current_dir
 
-# 2. 필수 부서 경로 설정
-planning_dir = current_dir / "03_전략기획실_Planning"
-production_dir = current_dir / "05_제작_스튜디오_Production"
-analysis_dir = current_dir / "02_분석실_Analysis"
-qc_dir = current_dir / "06_품질관리_QC"
+# 1. 루트 경로 확정
+CURRENT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CURRENT_DIR
 
-# 3. 파이썬에게 경로 인식 시키기 (sys.path)
-paths_to_add = [
-    str(root_dir),
-    str(planning_dir),
-    str(production_dir),
-    str(analysis_dir),
-    str(qc_dir),
-    # [Codespace/Cloud 환경 대응] 시스템 라이브러리 경로 강제 연결
-    "/usr/local/python/3.12.1/lib/python3.12/site-packages",
-    "/home/codespace/.local/lib/python3.12/site-packages"
+# 2. 필수 하위 부서 경로 등록 (sys.path)
+# 이 코드가 없으면 하위 폴더의 모듈을 import 할 수 없음
+sub_dirs = [
+    PROJECT_ROOT / "03_전략기획실_Planning",
+    PROJECT_ROOT / "05_제작_스튜디오_Production",
+    PROJECT_ROOT / "02_분석실_Analysis",
+    PROJECT_ROOT / "06_품질관리_QC",
+    PROJECT_ROOT / "00_기준정보_보물창고"
 ]
 
-for p in paths_to_add:
-    if p not in sys.path:
-        sys.path.append(p)
+for p in sub_dirs:
+    if str(p) not in sys.path:
+        sys.path.append(str(p))
+
+# 3. 환경변수 로드 (.env)
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 
 # =========================================================
-# 🎨 [Front-End] AI Novel Factory CEO Dashboard
+# 🎨 [UI Config] 스트림릿 페이지 설정
 # =========================================================
-
 st.set_page_config(
-    page_title="AI 소설 공장 (CEO 관제탑)", 
-    layout="wide", 
+    page_title="AI Novel Factory CEO Dashboard",
     page_icon="🏭",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- [사이드바] 글로벌 설정 ---
+# 커스텀 CSS (가독성 향상)
+st.markdown("""
+<style>
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #f0f2f6; border-radius: 4px 4px 0 0; gap: 1px; padding-top: 10px; padding-bottom: 10px; }
+    .stTabs [aria-selected="true"] { background-color: #ffffff; border-top: 2px solid #ff4b4b; }
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# 🎛️ [Sidebar] 글로벌 컨트롤 타워
+# =========================================================
 with st.sidebar:
-    st.header("⚙️ 시스템 제어")
+    st.header("🏭 Factory Control")
     
-    # 모델 상태 확인
+    # 1. API 상태 점검
+    api_key_status = "✅ 연결됨" if os.getenv("GEMINI_API_KEY") else "❌ 키 없음"
+    st.caption(f"Gemini API: {api_key_status}")
+    
+    # 2. 모델 상태 점검
     try:
         import model_selector
-        eng = model_selector.find_best_model()
-        st.success(f"🚀 엔진: {eng}")
-    except:
-        st.error("⚠️ 모델 셀렉터 연결 실패")
-
+        best_model = model_selector.find_best_model()
+        st.success(f"🚀 Active Engine:\n{best_model}")
+    except Exception as e:
+        st.error(f"⚠️ 엔진 오류: {e}")
+        
     st.divider()
-    st.info("💡 **Tip**: 기획실에서 '기획 엔진'을 가동하면 창고에 자동 저장됩니다.")
-    st.markdown("---")
-    st.caption("v24.0.0 (Ultimate Build)")
+    st.markdown("### 📂 바로가기")
+    st.page_link("app.py", label="메인 대시보드", icon="🏠")
+    st.caption("v2026.2.0 (Ultimate)")
 
-# --- [메인] 타이틀 및 탭 구성 ---
-st.title("🏭 AI 소설 공장 통합 관제탑")
-st.markdown("##### **[Planning]** ➔ **[Storage]** ➔ **[Production]** Pipeline")
+# =========================================================
+# 🚀 [Main Content] 부서별 탭 렌더링
+# =========================================================
+st.title("AI Novel Factory : CEO Dashboard")
+st.markdown("**기획(Planning)** ➔ **저장(Warehouse)** ➔ **제작(Production)** ➔ **검수(QC)**")
 
-# 4개의 핵심 부서 탭
-t1, t2, t3, t4 = st.tabs([
-    "🧠 1. 전략기획실 (Planning)", 
-    "🗂️ 2. 기획창고 (Warehouse)", 
-    "✍️ 3. 제작 스튜디오 (Production)", 
-    "⚖️ 4. 품질관리 (QC)"
+# 탭 구성
+tabs = st.tabs([
+    "🧠 1. 전략기획실", 
+    "🗂️ 2. 기획창고", 
+    "✍️ 3. 제작스튜디오", 
+    "⚖️ 4. 품질관리"
 ])
 
-# =========================================================
-# 🧩 [Module Connector] 각 부서 모듈 연결 및 렌더링
-# =========================================================
-
-# 세션 초기화 (안전 장치)
-if "current_plan" not in st.session_state: st.session_state.current_plan = None
-if "active_projects" not in st.session_state: st.session_state.active_projects = []
-
-# --- 1. 전략기획실 ---
-with t1:
+# --- Tab 1: 전략기획실 (Planning) ---
+with tabs[0]:
     try:
         import ui_planning
         ui_planning.render()
+    except ImportError:
+        st.error("🚨 `ui_planning.py`를 찾을 수 없습니다. `03_전략기획실_Planning` 폴더를 확인하세요.")
     except Exception as e:
-        st.error(f"🚨 기획실 모듈 로드 실패: {e}")
-        st.info("📌 확인: `03_전략기획실_Planning/ui_planning.py` 파일이 존재하는지 확인하세요.")
+        st.error(f"💥 기획실 시스템 붕괴: {e}")
 
-# --- 2. 기획창고 ---
-with t2:
+# --- Tab 2: 기획창고 (Warehouse) ---
+with tabs[1]:
     try:
         import ui_warehouse
-        # ui_warehouse가 제대로 경로를 받을 수 있게 인자 전달
-        ui_warehouse.render(planning_dir)
+        # 창고 모듈에는 기획실 경로를 인자로 넘겨줘야 함
+        ui_warehouse.render(PROJECT_ROOT / "03_전략기획실_Planning")
+    except ImportError:
+        st.warning("🚧 기획창고 모듈(`ui_warehouse.py`)이 아직 없습니다.")
     except Exception as e:
-        st.error(f"🚨 창고 모듈 로드 실패: {e}")
-        # Plotly 문제일 경우 힌트 제공
-        if "plotly" in str(e):
-            st.warning("📉 시각화 도구(Plotly)가 설치되지 않았거나 경로 문제일 수 있습니다.")
+        st.error(f"💥 창고 시스템 오류: {e}")
 
-# --- 3. 제작 스튜디오 ---
-with t3:
+# --- Tab 3: 제작스튜디오 (Production) ---
+with tabs[2]:
     try:
         import ui_production
-        # 기획안 폴더와 결과물 폴더를 인자로 전달
-        ui_production.render(planning_dir, production_dir)
+        # 제작소에는 기획 폴더와 결과물 폴더 경로가 필요
+        ui_production.render(
+            PROJECT_ROOT / "03_전략기획실_Planning",
+            PROJECT_ROOT / "05_제작_스튜디오_Production"
+        )
+    except ImportError:
+        st.warning("🚧 제작소 모듈(`ui_production.py`)이 아직 없습니다.")
     except Exception as e:
-        st.error(f"🚨 제작소 모듈 로드 실패: {e}")
+        st.error(f"💥 제작소 시스템 오류: {e}")
 
-# --- 4. 품질관리 ---
-with t4:
-    st.info("🚧 품질관리(QC) 부서는 현재 채용 중입니다. (추후 업데이트)")
-    # 추후 ui_qc.render() 연결 예정
+# --- Tab 4: 품질관리 (QC) ---
+with tabs[3]:
+    st.info("🚧 품질관리(QC) 부서는 현재 인테리어 공사 중입니다.")
