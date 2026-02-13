@@ -73,10 +73,9 @@ def render(planning_dir):
             with c2: # 핵심 정보
                 st.info(f"**Logline:** {data.get('logline')}")
                 st.caption(f"장르: {data.get('genre')} | 타겟: {data.get('target_reader', '전체')}")
-                # 분석 결과 (디벨롭 코멘트 등)
                 if data.get('remake_analysis'):
                     ra = data['remake_analysis']
-                    st.success(f"🔔 **최근 수정 내역:** {ra.get('verdict', '수정 완료')}")
+                    st.success(f"🔔 **최근 수정:** {ra.get('verdict', '수정 완료')}")
 
             st.divider()
 
@@ -99,16 +98,14 @@ def render(planning_dir):
             # --- [Control Center] ---
             col_prod, col_dev, col_del = st.columns([2, 2, 1])
 
-            # [Action A] 제작소 투입 (슬롯 선택)
+            # [Action A] 제작소 투입
             with col_prod:
-                with st.popover("🏭 제작 투입 (Send to Studio)"):
-                    st.markdown("#### 스튜디오 배정")
-                    
-                    # 현재 활성 슬롯 확인
+                with st.popover("🏭 제작 투입"):
+                    st.write("스튜디오 배정")
                     active = st.session_state.get('active_projects', [])
                     
-                    # 1~10번 슬롯 UI
-                    slot = st.selectbox("슬롯 선택", [f"Studio {i}" for i in range(1, 11)])
+                    # 🔥 [FIX] 여기서 key를 유니크하게 줘서 에러 해결!
+                    slot = st.selectbox("슬롯 선택", [f"Studio {i}" for i in range(1, 11)], key=f"slot_sel_{folder.name}")
                     
                     if st.button("🚀 제작 시작", key=f"go_{folder.name}", type="primary"):
                         if folder.name not in active:
@@ -118,22 +115,21 @@ def render(planning_dir):
                         else:
                             st.warning("이미 제작 중인 프로젝트입니다.")
 
-            # [Action B] 스마트 디벨롭 (수정)
+            # [Action B] 스마트 디벨롭
             with col_dev:
-                with st.popover("🛠️ 디벨롭 (Smart Remake)"):
-                    st.markdown("#### 👨‍🏫 기획 수정 지시")
-                    req = st.text_area("수정 사항을 입력하세요", key=f"req_{folder.name}", placeholder="예: 주인공 성격을 좀 더 냉철하게 바꿔줘.")
+                with st.popover("🛠️ 디벨롭"):
+                    st.write("기획 수정 지시")
+                    req = st.text_area("수정 사항", key=f"req_{folder.name}")
                     
                     if st.button("⚡ 수정 실행", key=f"do_{folder.name}"):
                         if not engine:
-                            st.error("기획 엔진(Strategy Judge) 로드 실패")
+                            st.error("기획 엔진 로드 실패")
                         else:
                             with st.status("🧠 기획자가 문서를 수정하고 있습니다...", expanded=True) as status:
-                                st.write("분석 중...")
                                 new_p, msg = engine.remake_planning(data, req)
                                 if "Success" in msg:
                                     utils.create_new_version(folder, new_p)
-                                    status.update(label="✅ 수정 완료! (v1.x -> v1.y)", state="complete")
+                                    status.update(label="✅ 수정 완료!", state="complete")
                                     time.sleep(1.5)
                                     st.rerun()
                                 else:
