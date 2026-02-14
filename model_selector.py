@@ -1,81 +1,90 @@
 import os
-import sys
 import google.generativeai as genai
 from dotenv import load_dotenv
-from pathlib import Path
+
+# 환경변수 로드
+load_dotenv()
 
 # =========================================================
-# 🤖 [중앙 통제실] Model Selector (2026 Ultimate Edition)
-# 역할: 사장님의 점수 로직에 따라 현존 최강 모델을 자동 배급
+# 📅 2026.02 Latest Model Lineup (Authorized by CEO)
 # =========================================================
 
-# 1. 환경 설정
-FIXED_ROOT = Path(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(dotenv_path=FIXED_ROOT / ".env")
+MODEL_SPECS = {
+    "GOOGLE": {
+        "flagship": "models/gemini-3-pro",        # 복잡한 추론, 코딩, 데이터 분석 (Main)
+        "fast": "models/gemini-3-flash",          # 대량 쿼리, 속도 최적화
+        "reasoning": "models/gemini-3-deep-think",# 과학/공학 특수 추론
+        "legacy": "models/gemini-2.5-pro"         # 안정성 백업용
+    },
+    "OPENAI": {
+        "flagship": "gpt-5.2",           # 2025.12 출시 최신작 (Main)
+        "fast": "gpt-5-nano",            # 초고속 경량 모델
+        "reasoning": "o3",               # STEM/코딩 특화 (Thinking Process)
+        "creative": "gpt-5.2"            # 창작에도 5.2가 우세
+    },
+    "ANTHROPIC": {
+        "flagship": "claude-opus-4.6",   # 1M 컨텍스트, 기업용 에이전트 (Main)
+        "balanced": "claude-3-7-sonnet", # 속도/성능 균형
+        "fast": "claude-3-5-haiku"       # 실시간 응답
+    }
+}
 
-API_KEY = os.getenv("GEMINI_KEY_PLANNING") or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY_WRITING")
+def get_api_key(provider="GOOGLE"):
+    """제공자별 API 키를 가져옵니다."""
+    if provider == "GOOGLE":
+        return os.getenv("GEMINI_KEY_PLANNING") or os.getenv("GEMINI_API_KEY")
+    elif provider == "OPENAI":
+        return os.getenv("OPENAI_API_KEY")
+    elif provider == "ANTHROPIC":
+        return os.getenv("ANTHROPIC_API_KEY")
+    return None
 
-if API_KEY:
-    genai.configure(api_key=API_KEY)
-
-def find_best_model():
+def find_best_model(task_type="creative"):
     """
-    사장님의 점수표를 기반으로 사용 가능한 가장 높은 등급의 모델을 탐색합니다.
+    작업 유형(task_type)에 따라 2026년 최적의 모델을 반환합니다.
+    
+    Args:
+        task_type (str): 'creative' (기획/창작), 'logic' (추론/분석), 'coding' (코딩), 'speed' (단순작업)
+    
+    Returns:
+        str: 모델명 (예: 'models/gemini-3-pro')
     """
-    try:
-        if not API_KEY:
-            return 'gemini-1.5-flash' # 키가 없으면 최소 사양 반환
+    # 우선순위: GOOGLE (기본) -> OPENAI -> ANTHROPIC
+    # 사장님의 지갑 사정과 API 키 유무에 따라 자동 배차합니다.
 
-        # 1. 실제 서버에서 지원하는 모델 리스트 확보
-        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    google_key = get_api_key("GOOGLE")
+    openai_key = get_api_key("OPENAI")
+    anthropic_key = get_api_key("ANTHROPIC")
+
+    # 1. 창의적 기획 / 메인 집필 (Creative)
+    if task_type == "creative":
+        if google_key: return MODEL_SPECS["GOOGLE"]["flagship"] # Gemini 3 Pro
+        if openai_key: return MODEL_SPECS["OPENAI"]["flagship"] # GPT-5.2
+        if anthropic_key: return MODEL_SPECS["ANTHROPIC"]["flagship"] # Opus 4.6
+
+    # 2. 논리적 분석 / 비평 / 전략 수립 (Logic & Reasoning)
+    elif task_type == "logic":
+        if openai_key: return MODEL_SPECS["OPENAI"]["reasoning"] # o3 (Thinking)
+        if google_key: return MODEL_SPECS["GOOGLE"]["reasoning"] # Gemini 3 Deep Think
+        if anthropic_key: return MODEL_SPECS["ANTHROPIC"]["flagship"] # Opus 4.6
+
+    # 3. 코딩 / 시스템 구축 (Coding)
+    elif task_type == "coding":
+        if openai_key: return MODEL_SPECS["OPENAI"]["reasoning"] # o3 (Coding King)
+        if google_key: return MODEL_SPECS["GOOGLE"]["flagship"] # Gemini 3 Pro
         
-        candidates = []
-        for m in all_models:
-            name = m.lower()
-            # 불필요한 모델(이미지 전용, 나노 등) 제외
-            if 'gemini' not in name: continue
-            if any(x in name for x in ['vision', 'nano', 'banana', 'robotics']): continue
-            candidates.append(m)
+    # 4. 단순 요약 / 빠른 처리 (Speed)
+    elif task_type == "speed":
+        if google_key: return MODEL_SPECS["GOOGLE"]["fast"] # Gemini 3 Flash
+        if openai_key: return MODEL_SPECS["OPENAI"]["fast"] # GPT-5-nano
+        if anthropic_key: return MODEL_SPECS["ANTHROPIC"]["fast"] # Haiku
 
-        if not candidates:
-            return 'gemini-1.5-flash'
+    # 기본값 (Fallback)
+    return "models/gemini-3-pro"
 
-        # 2. 사장님의 2026년 기준 가점 시스템 (High-Grade First)
-        scored_models = []
-        for m in candidates:
-            score = 0
-            name = m.lower()
-            
-            # [버전 점수 - 사장님 가이드라인 준수]
-            if 'gemini-3' in name: score += 10000
-            elif 'gemini-2.5' in name: score += 8000
-            elif 'gemini-2.0' in name: score += 5000
-            elif 'gemini-1.5' in name: score += 1000
-            
-            # [등급 가점]
-            if 'deep-research' in name: score += 1000
-            elif 'pro' in name: score += 500
-            elif 'flash' in name: score += 100
-            
-            # [실험적 모델 감점 최소화] - 최신 기술 우선
-            if 'exp' in name: score += 50 
-            
-            scored_models.append((score, m))
-
-        # 3. 최고점 모델 선별
-        scored_models.sort(key=lambda x: x[0], reverse=True)
-        best_model = scored_models[0][1]
-        
-        # ⚠️ [보안 패치] 'latest' 별칭이 404를 일으킬 수 있으므로 실제 모델명(models/...) 그대로 사용
-        return best_model
-
-    except Exception as e:
-        # 에러 시에도 사장님이 노여워하지 않도록 가장 안정적인 최신 모델명 반환 시도
-        return 'gemini-1.5-flash'
-
-# 다른 부서에서 호출하는 함수명 호환성 유지
-def analyze_and_select_model(role=None):
-    return find_best_model()
-
+# 테스트용
 if __name__ == "__main__":
-    print(f"👑 [2026 Best Engine Selected]: {find_best_model()}")
+    print(f"🚀 [2026 Engine Check]")
+    print(f" - Creative Engine: {find_best_model('creative')}")
+    print(f" - Logic Engine:    {find_best_model('logic')}")
+    print(f" - Speed Engine:    {find_best_model('speed')}")
