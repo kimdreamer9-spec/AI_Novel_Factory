@@ -1,38 +1,96 @@
 import os
 import json
+import yaml  # PyYAML 필요 (없으면 pip install PyYAML)
 from pathlib import Path
 
 # =========================================================
-# 🏭 [AI 소설 공장] 인프라 구축 스크립트 (Infrastructure Only)
-# 역할: 오직 '폴더'와 '파일'의 뼈대만 생성합니다. (내용은 나중에 채움)
+# 🏭 [AI 소설 공장] 통합 구축 스크립트 (All-in-One)
 # =========================================================
 
 BASE_DIR = Path.cwd()
 
-# 1. 공장 설계도 (Blueprint)
-# 딕셔너리 키는 폴더명, 리스트는 그 안의 파일명입니다.
+# ---------------------------------------------------------
+# 1. 프롬프트 데이터 (YAML 내용 정의)
+# ---------------------------------------------------------
+PROMPTS_DATA = {
+    "creative_new.yaml": """system: |
+  You are **Korea's No.1 Web Novel CP (Creative Planner)**.
+  Current Era: 2026. The market demands **Fast Pacing** and **Clear Rewards**.
+  [🚨 CRITICAL] LANGUAGE: **KOREAN ONLY**. SYNOPSIS: **Ep 1~5 Detailed**.
+
+user: |
+  [Mission]: Create a top-tier web novel plan.
+  [Ref]: {materials}
+  [Rules]: {rules}
+  [Input]: "{user_input}"
+  [Feedback]: "{feedback}"
+  
+  [Output JSON Structure]
+  {{ "title": "...", "genre": "...", "logline": "...", "characters": [], "synopsis": "...", "episode_plots": [], "swot_analysis": {{}} }}
+""",
+    "creative_fix.yaml": """system: |
+  You are an expert **Web Novel Editor**.
+  Goal: **MODIFY** plan based on feedback. **OUTPUT: KOREAN**.
+
+user: |
+  [Original]: {original_plan}
+  [Feedback]: "{user_feedback}"
+  [Mission]: Reflect feedback, Keep JSON structure, 5 Ep details.
+""",
+    "red_team.yaml": """system: |
+  You are **Korea's Most Critical Web Novel Editor**.
+  **OUTPUT: KOREAN**.
+
+user: |
+  [Ref]: {benchmarks}
+  [Banned]: {banned_words}
+  [Target]: {plan_json}
+  [Mission]: Critique (Plagiarism, Logic, Commercial). Output JSON.
+"""
+}
+
+# ---------------------------------------------------------
+# 2. 프롬프트 로더 (Python Code)
+# ---------------------------------------------------------
+LOADER_CODE = """import yaml
+import os
+from pathlib import Path
+
+CURRENT_DIR = Path(__file__).resolve().parent
+PROMPT_DIR = CURRENT_DIR / "prompts"
+
+def load_prompt(filename, **kwargs):
+    try:
+        file_path = PROMPT_DIR / filename
+        if not file_path.exists(): return f"Error: {filename} not found", ""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+        sys_p = data.get('system', '')
+        usr_p = data.get('user', '')
+        if kwargs:
+            try:
+                sys_p = sys_p.format(**kwargs)
+                usr_p = usr_p.format(**kwargs)
+            except: pass
+        return sys_p, usr_p
+    except: return "", ""
+"""
+
+# ---------------------------------------------------------
+# 3. 공장 구조 설계도 (Infrastructure)
+# ---------------------------------------------------------
 STRUCTURE = {
     "00_기준정보_보물창고": {
         "files": ["standard-rubric.json", "rubric_maker.py"],
         "subdirs": {
-            "04_설정_트랜드": [],  # 추후 트렌드 리포트 저장
-            "05_팁_보물창고": [],  # 작법 팁 저장
-            "작법_이론서": [       # 텍스트 파일 껍데기만 생성
-                "PD_작법서_요약.txt", 
-                "유튜브_대사_필승공식.txt",
-                "웹소설_기승전결_구조.txt"
-            ],
-            "99_지능형_프롬프트": [ # 프롬프트 파일 껍데기만 생성
-                "01_Tree_of_Thoughts.md",
-                "02_Self_Reflection.md",
-                "03_Meta_Prompting.md",
-                "04_RAG_Search_Augmented.md",
-                "05_Reason_and_Act.md"
-            ]
+            "04_설정_트랜드": [],
+            "05_팁_보물창고": [],
+            "작법_이론서": ["PD_작법서_요약.txt"],
+            "99_지능형_프롬프트": ["01_Tree_of_Thoughts.md", "02_Self_Reflection.md", "04_RAG_Search_Augmented.md", "05_Reason_and_Act.md"]
         }
     },
     "01_자료실_Raw_Data": {
-        "files": ["processor_pro.py", "text_importer.py", "scanner_pro.py"],
+        "files": [], # 코드는 99_시스템_도구함으로 이동됨
         "subdirs": {
             "99_이미지_투입구": [],
             "99_텍스트_투입구": [],
@@ -40,102 +98,94 @@ STRUCTURE = {
         }
     },
     "02_분석실_Analysis": {
-        "files": ["staff_analyst.py", "leader_analyst.py", "00_통합_트렌드_리포트.json"],
-        "subdirs": {
-            "01_문체_분석": [],
-            "02_캐릭터_분석": [],
-            "03_스토리_분석": []
-        }
+        "files": ["master_analyst.py", "00_통합_트렌드_리포트.json"],
     },
     "03_전략기획실_Planning": {
-        "files": ["creative_planner.py", "red_team_plan.py", "strategy_judge.py", "ui_planning.py", "ui_warehouse.py"]
+        "files": ["creative_planner.py", "red_team_plan.py", "strategy_judge.py", "manager_development.py", "ui_planning.py", "ui_warehouse.py", "prompt_loader.py"],
+        "subdirs": {
+            "prompts": [] # 여기에 YAML 파일 들어감
+        }
     },
     "04_설정_자료집": {
-        "files": [],
         "subdirs": {
-            "A_대체역사_1800_2000": ["역사_연표_미국.txt", "무기_개발_연표.txt", "발명품_목록.txt", "인재_목록.txt"],
-            "B_현대판타지_1950_2026": [ # 하위 폴더는 아래 main()에서 추가 생성
-                "01_경제_역사", "02_기업_역사", "03_인물_DB", "04_꿀템_치트키"
-            ], 
-            "C_공통_자료실": ["맛깔난_욕설모음.txt", "음식_묘사_사전.txt", "감정_표현_사전.txt"]
+            "A_대체역사_1800_2000": ["역사_연표_미국.txt"],
+            "B_현대판타지_1950_2026": ["01_경제_역사", "02_기업_역사"],
+            "C_공통_자료실": ["감정_표현_사전.txt"]
         }
     },
     "05_제작_스튜디오_Production": {
-        "files": ["treatment_writer.py", "character_bot.py", "main_writer.py", "red_team_pd.py", "ui_production.py"]
+        "files": ["treatment_writer.py", "main_writer.py", "character_bot.py", "red_team_pd.py", "ui_production.py", "narrative_extractor.py"]
     },
     "06_품질관리_QC": {
-        "files": ["plagiarism_scanner.py", "final_polisher.py"]
+        "files": ["final_polisher.py"]
+    },
+    "99_시스템_도구함": {
+        "files": ["processor_pro.py", "scanner_pro.py", "text_importer.py", "check_api_status.py"]
     }
 }
 
-# =========================================================
-# 🏗️ 건설 로직 (Builder)
-# =========================================================
+# ---------------------------------------------------------
+# 4. 건설 로직 (Builder)
+# ---------------------------------------------------------
 def create_structure(base, structure):
     for name, content in structure.items():
         path = base / name
         
-        # 1. 폴더인 경우 (딕셔너리 구조)
-        if isinstance(content, dict):
+        if isinstance(content, dict): # 폴더
             path.mkdir(parents=True, exist_ok=True)
-            print(f"📂 폴더 확인/생성: {name}")
+            print(f"📂 폴더: {name}")
             
-            # 1-1. 해당 폴더 내 파일 생성
+            # 파일 생성
             if "files" in content:
                 for file in content["files"]:
                     file_path = path / file
                     if not file_path.exists():
-                        file_path.touch() # 빈 파일 생성
-                        print(f"  └─ 📄 파일 생성: {file}")
+                        # 특수 파일 처리 (내용 채우기)
+                        if file == "prompt_loader.py":
+                            file_path.write_text(LOADER_CODE, encoding='utf-8')
+                            print(f"  └─ ⚡ 생성 및 코드 주입: {file}")
+                        else:
+                            file_path.touch()
+                            print(f"  └─ 📄 빈 파일 생성: {file}")
             
-            # 1-2. 서브 폴더 재귀 호출
+            # 하위 폴더 생성
             if "subdirs" in content:
                 create_structure(path, content["subdirs"])
                 
-        # 2. 리스트인 경우 (단순 하위 폴더/파일 목록)
-        elif isinstance(content, list):
+                # 프롬프트 YAML 주입 (03_전략기획실/prompts)
+                if name == "03_전략기획실_Planning" and "prompts" in content["subdirs"]:
+                    prompt_path = path / "prompts"
+                    for fname, text in PROMPTS_DATA.items():
+                        (prompt_path / fname).write_text(text, encoding='utf-8')
+                        print(f"  └─ 📝 프롬프트 생성: prompts/{fname}")
+
+        elif isinstance(content, list): # 단순 리스트
             path.mkdir(parents=True, exist_ok=True)
             for item in content:
-                # 확장자가 없으면 폴더로 간주, 있으면 파일로 간주
-                item_path = path / item
-                if "." in item: # 파일
-                    if not item_path.exists():
-                        item_path.touch()
-                        print(f"  └─ 📄 파일 생성: {item}")
-                else: # 폴더
-                    item_path.mkdir(exist_ok=True)
-                    print(f"  └─ 📂 하위 폴더: {item}")
-
-def create_initial_env():
-    """환경변수 파일 껍데기 생성"""
-    env_path = BASE_DIR / ".env"
-    if not env_path.exists():
-        content = """# Google API Key
-GEMINI_API_KEY=
-GEMINI_KEY_PLANNING=
-
-# OpenAI API Key (Optional)
-OPENAI_API_KEY=
-"""
-        env_path.write_text(content, encoding="utf-8")
-        print("🔑 .env 파일 생성 완료 (키를 입력하세요)")
+                if "." in item:
+                    (path / item).touch()
+                else:
+                    (path / item).mkdir(exist_ok=True)
 
 def main():
-    print(f"🚀 [System Setup] 2026 AI Novel Factory 인프라 구축 시작...\n")
+    print(f"🚀 [Factory Setup] 통합 구축 시작...\n")
     
-    create_initial_env()
+    # 1. 구조 생성
     create_structure(BASE_DIR, STRUCTURE)
     
-    # 루트 레벨 필수 파일
-    root_files = ["app.py", "model_selector.py", "system_utils.py", "requirements.txt"]
+    # 2. 루트 파일
+    root_files = ["app.py", "model_selector.py", "system_utils.py", "requirements.txt", ".gitignore"]
     for f in root_files:
         if not (BASE_DIR / f).exists():
             (BASE_DIR / f).touch()
             print(f"📦 루트 파일 생성: {f}")
 
-    print("\n🎉 [Complete] 공장 뼈대 구축 완료!")
-    print("👉 이제 각 폴더의 .py 파일에 실제 로직 코드를 붙여넣으세요.")
-    print("👉 프롬프트 내용은 '00_기준정보_보물창고/99_지능형_프롬프트'의 .md 파일에 직접 작성하면 됩니다.")
+    # 3. .env (없을 때만)
+    if not (BASE_DIR / ".env").exists():
+        (BASE_DIR / ".env").write_text("GEMINI_API_KEY=\nOPENAI_API_KEY=", encoding='utf-8')
+        print("🔑 .env 생성 완료")
+
+    print("\n🎉 [Complete] 공장 구축 완료! (프롬프트 시스템 포함)")
 
 if __name__ == "__main__":
     main()

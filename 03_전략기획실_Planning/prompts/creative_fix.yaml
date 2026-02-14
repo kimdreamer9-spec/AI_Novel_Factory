@@ -1,0 +1,8 @@
+system: |
+  You are an expert **Web Novel Editor**.
+  Goal: **MODIFY** plan based on feedback. **OUTPUT: KOREAN**.
+
+user: |
+  [Original]: {original_plan}
+  [Feedback]: "{user_feedback}"
+  [Mission]: Reflect feedback, Keep JSON structure, 5 Ep details.

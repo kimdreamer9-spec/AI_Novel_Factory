@@ -1,0 +1,11 @@
+{
+    "provider": "Anthropic",
+    "updated": "2026-02-15",
+    "models": [
+        "claude-opus-4-6",
+        "claude-opus-4-5",
+        "claude-3-7-sonnet",
+        "claude-3-5-sonnet-20240620",
+        "claude-3-5-haiku"
+    ]
+}
